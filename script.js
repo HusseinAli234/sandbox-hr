@@ -764,7 +764,7 @@ function renderResumeDetails(resume) {
         `;
     }
     
-    if (resume.soft_total) {
+    if (resume.soft_total && resume.soft_total.total !== null) {
         html += `
             <div>
                 <span>Soft Skills Score:</span>
@@ -817,8 +817,10 @@ function renderResumeDetails(resume) {
             `;
         });
     }
-    if (softSkills.length > 0 || resume.soft_total.total == 0) {
-        html += '<h4>Soft Skills</h4>';
+    
+    // Проверяем наличие мягких навыков или анализа мягких навыков
+    html += '<h4>Soft Skills</h4>';
+    if (softSkills.length > 0) {
         softSkills.forEach(skill => {
             html += `
                 <div class="detail-item">
@@ -827,9 +829,12 @@ function renderResumeDetails(resume) {
                 </div>
             `;
         });
+    } else if (resume.soft_total && resume.soft_total.total === 0) {
+        // Если анализ завершен, но нет мягких навыков
+        html += `<p>No soft skills detected in the resume.</p>`;
     } else {
+        // Если анализ еще не завершен
         html += `
-            <h4>Soft Skills</h4>
             <div class="analysis-pending">
                 <span class="pending-message">Soft skills analysis in progress. This may take a few minutes...</span>
                 <div class="loading-spinner"></div>
@@ -1270,12 +1275,18 @@ async function refreshAccessToken() {
 
 // New function to load vacancies for the dropdown
 async function loadVacanciesForDropdown() {
-    // Clear existing options except the default one
-    const defaultOption = elements.vacancySelector.options[0];
-    elements.vacancySelector.innerHTML = '';
-    elements.vacancySelector.appendChild(defaultOption);
-    
     try {
+        // Сохраняем первую опцию (placeholder)
+        const defaultOption = elements.vacancySelector.options[0];
+        
+        // Полностью очищаем селектор
+        elements.vacancySelector.innerHTML = '';
+        
+        // Возвращаем первую опцию обратно
+        if (defaultOption) {
+            elements.vacancySelector.appendChild(defaultOption);
+        }
+        
         const response = await fetchWithAuth(API_ENDPOINTS.getVacancies, {
             method: 'GET',
             headers: {
@@ -1324,12 +1335,18 @@ async function loadVacanciesForFilterDropdown() {
     const vacancySelector = document.getElementById('resume-vacancy-selector');
     if (!vacancySelector) return;
     
-    // Keep the default "All Resumes" option
-    const defaultOption = vacancySelector.options[0];
-    vacancySelector.innerHTML = '';
-    vacancySelector.appendChild(defaultOption);
-    
     try {
+        // Сохраняем первую опцию "All Resumes"
+        const defaultOption = vacancySelector.options[0];
+        
+        // Полностью очищаем селектор
+        vacancySelector.innerHTML = '';
+        
+        // Возвращаем первую опцию обратно
+        if (defaultOption) {
+            vacancySelector.appendChild(defaultOption);
+        }
+        
         const response = await fetchWithAuth(API_ENDPOINTS.getVacancies, {
             method: 'GET',
             headers: { "Content-Type": "application/json" }
@@ -1349,9 +1366,22 @@ async function loadVacanciesForFilterDropdown() {
                 option.textContent = vacancy.title;
                 vacancySelector.appendChild(option);
             });
+        } else {
+            // Добавляем опцию, если нет вакансий
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "No vacancies available";
+            option.disabled = true;
+            vacancySelector.appendChild(option);
         }
     } catch (error) {
         console.error('Error loading vacancies for filter dropdown:', error);
+        // Добавляем опцию с сообщением об ошибке
+        const option = document.createElement('option');
+        option.value = "";
+        option.textContent = "Error loading vacancies";
+        option.disabled = true;
+        vacancySelector.appendChild(option);
     }
 }
 
@@ -1574,7 +1604,21 @@ async function loadVacancies() {
             headers['Authorization'] = `Bearer ${token}`;
         }
         
-        const response = await fetch(API_ENDPOINTS.vacancies, {
+        // Сохраняем первую опцию (placeholder), если она есть
+        let defaultOption = null;
+        if (elements.vacancySelector.options.length > 0) {
+            defaultOption = elements.vacancySelector.options[0];
+        }
+        
+        // Полностью очищаем селектор
+        elements.vacancySelector.innerHTML = '';
+        
+        // Возвращаем первую опцию обратно, если она была
+        if (defaultOption) {
+            elements.vacancySelector.appendChild(defaultOption);
+        }
+        
+        const response = await fetch(API_ENDPOINTS.getVacancies, {
             method: 'GET',
             headers: headers
         });
@@ -1599,21 +1643,32 @@ async function loadVacancies() {
         
         const vacancies = await response.json();
         
-        // Clear existing options except for the placeholder
-        while (elements.vacancySelector.options.length > 1) {
-            elements.vacancySelector.remove(1);
-        }
-        
         // Add vacancies to the selector
-        vacancies.forEach(vacancy => {
+        if (vacancies && vacancies.length > 0) {
+            vacancies.forEach(vacancy => {
+                const option = document.createElement('option');
+                option.value = vacancy.id;
+                option.textContent = vacancy.title;
+                elements.vacancySelector.appendChild(option);
+            });
+        } else {
+            // Добавляем опцию, если нет вакансий
             const option = document.createElement('option');
-            option.value = vacancy.id;
-            option.textContent = vacancy.title;
+            option.value = "";
+            option.textContent = "No vacancies available";
+            option.disabled = true;
             elements.vacancySelector.appendChild(option);
-        });
+        }
         
     } catch (error) {
         console.error('Error loading vacancies:', error);
         showNotification('Failed to load vacancies. Please try again later.', true);
+        
+        // Добавляем опцию с сообщением об ошибке
+        const option = document.createElement('option');
+        option.value = "";
+        option.textContent = "Error loading vacancies";
+        option.disabled = true;
+        elements.vacancySelector.appendChild(option);
     }
 } 
