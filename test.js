@@ -2,7 +2,6 @@
 const API_BASE_URL = 'https://api.sand-box.pp.ua';
 const API_ENDPOINTS = {
     getTest: (id) => `${API_BASE_URL}/test/${id}`,
-    getResume: (id) => `${API_BASE_URL}/resumes/${id}`,
     submitResult: `${API_BASE_URL}/result`
 };
 
@@ -11,7 +10,6 @@ const elements = {
     // Test sections
     testTitle: document.getElementById('test-title'),
     testDescription: document.getElementById('test-description'),
-    resumeName: document.getElementById('resume-name'),
     loadingIndicator: document.getElementById('loading-indicator'),
     testContent: document.getElementById('test-content'),
     testForm: document.getElementById('test-form'),
@@ -27,7 +25,6 @@ const elements = {
 let resumeId = null;
 let testIds = [];
 let tests = [];
-let resumeData = null;
 let testResults = [];
 
 // Parse URL parameters
@@ -70,32 +67,6 @@ function showError(message) {
     elements.loadingIndicator.textContent = `Error: ${message}`;
     elements.loadingIndicator.style.color = '#e74c3c';
     showNotification(message, true);
-}
-
-// Fetch resume data
-async function fetchResumeData() {
-    try {
-        const response = await fetch(API_ENDPOINTS.getResume(resumeId), {
-            method: 'GET',
-            credentials: 'include'
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch resume information');
-        }
-        
-        resumeData = await response.json();
-        
-        // Update UI with resume info
-        elements.resumeName.textContent = resumeData.fullname;
-        
-    } catch (error) {
-        console.error('Error fetching resume:', error);
-        showError('Could not load resume information. Please try again later.');
-        return false;
-    }
-    
-    return true;
 }
 
 // Fetch test data
@@ -321,12 +292,6 @@ function displayResults() {
 async function init() {
     // Parse URL parameters
     if (!parseUrlParams()) {
-        return;
-    }
-    
-    // Fetch resume data
-    const resumeSuccess = await fetchResumeData();
-    if (!resumeSuccess) {
         return;
     }
     

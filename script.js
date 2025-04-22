@@ -11,7 +11,8 @@ const API_ENDPOINTS = {
     getResumesByVacancy: (vacancyId) => `${API_BASE_URL}/resumes/resumes_by_vacancy/${vacancyId}`,
     getResumeById: (id) => `${API_BASE_URL}/resumes/${id}`,
     deleteResume: (id) => `${API_BASE_URL}/resumes/${id}`,
-    deleteVacancy: (id) => `${API_BASE_URL}/vacancy/${id}`
+    deleteVacancy: (id) => `${API_BASE_URL}/vacancy/${id}`,
+    submitTest: `${API_BASE_URL}/test/submit`
 };
 
 // DOM Elements
@@ -1012,22 +1013,37 @@ async function logoutUser() {
 
 // File upload function
 async function uploadResume(vacancy_id, files) {
-    // Get the vacancy title from the selected option
-    const selectedOption = elements.vacancySelector.options[elements.vacancySelector.selectedIndex];
-    const vacancyTitle = selectedOption ? selectedOption.textContent : vacancy_id;
+    // Store button reference and original text outside the try block
+    const uploadBtn = elements.resumeUploadFormElement.querySelector('button[type="submit"]');
+    const originalBtnText = uploadBtn.textContent;
     
-    console.log('vacancy_id:', vacancy_id);
-    const url = new URL(API_ENDPOINTS.uploadPdf);
-    url.searchParams.set("vacancy_id", vacancy_id);
     try {
-        const formData = new FormData();
+        // Show loading indicator
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="loading-spinner"></span> Uploading...';
         
-        // Append all files to the FormData
-        for (let i = 0; i < files.length; i++) {
-            formData.append('files', files[i]);
+        // Get vacancy title for history
+        const selectedVacancy = Array.from(elements.vacancySelector.options)
+            .find(option => option.value === vacancy_id);
+        
+        if (!selectedVacancy) {
+            throw new Error('Selected vacancy not found');
         }
         
-        const response = await fetch(url, {
+        const vacancyTitle = selectedVacancy.textContent;
+        
+        // Prepare the form data with the files and vacancy ID
+        const formData = new FormData();
+        
+        // API expects vacancy_id as a query parameter, not in the form data
+        const uploadUrl = `${API_ENDPOINTS.uploadPdf}?vacancy_id=${vacancy_id}`;
+        
+        // Add all files to the FormData
+        files.forEach(file => {
+            formData.append('files', file);
+        });
+        
+        const response = await fetch(uploadUrl, {
             method: 'POST',
             credentials: 'include',
             body: formData
@@ -1043,34 +1059,37 @@ async function uploadResume(vacancy_id, files) {
         const data = await response.json();
         
         if (!response.ok) {
-            throw new Error(data.message || 'Upload failed');
+            throw new Error(data.message || 'Failed to upload resume');
         }
         
-        showNotification(`${files.length} resume(s) uploaded successfully!`);
+        // Show success message
+        showNotification('Resume uploaded successfully!');
         
-        // Use batch uploading for multiple files
-        const timestamp = new Date().toISOString();
-        if (files.length > 1) {
-            // For multiple files, use batch upload tracking
-            for (let i = 0; i < files.length; i++) {
-                addToUploadHistory(vacancy_id, vacancyTitle, files[i].name, timestamp, true);
-            }
-        } else {
+        // Add to upload history
+        if (files.length === 1) {
             // Single file upload
-            addToUploadHistory(vacancy_id, vacancyTitle, files[0].name, timestamp, false);
+            addToUploadHistory(vacancy_id, vacancyTitle, files[0].name, new Date().toISOString());
+        } else {
+            // Multiple files upload
+            addToUploadHistory(vacancy_id, vacancyTitle, null, new Date().toISOString(), true, files.length);
         }
         
         // Reset form
         elements.resumeUploadFormElement.reset();
         
-        // Refresh resumes list if the user is in the resumes section
-        if (elements.myResumesSection.style.display === 'block') {
-            fetchResumes();
-        }
-        
     } catch (error) {
-        showNotification(`Upload error: ${error.message}`, true);
+        showNotification(`Error uploading resume: ${error.message}`, true);
         console.error('Upload error:', error);
+    } finally {
+        // Restore button state
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = originalBtnText;
+        
+        // Hide status indicator
+        const statusDiv = document.getElementById('upload-status');
+        if (statusDiv) {
+            statusDiv.style.display = 'none';
+        }
     }
 }
 
@@ -1165,42 +1184,45 @@ async function loadVacanciesForFilterDropdown() {
 
 // Event Listeners
 function attachEventListeners() {
-    // Show/hide forms
+    // Auth section toggle
     elements.showLoginBtn.addEventListener('click', () => {
         elements.loginForm.style.display = 'block';
         elements.registerForm.style.display = 'none';
+        elements.showLoginBtn.classList.add('active');
+        elements.showRegisterBtn.classList.remove('active');
     });
     
     elements.showRegisterBtn.addEventListener('click', () => {
-        elements.registerForm.style.display = 'block';
         elements.loginForm.style.display = 'none';
+        elements.registerForm.style.display = 'block';
+        elements.showLoginBtn.classList.remove('active');
+        elements.showRegisterBtn.classList.add('active');
     });
     
-    // Show/hide sections
+    // Navigation
     elements.showResumeBtn.addEventListener('click', showResumeSection);
     elements.showVacancyBtn.addEventListener('click', showVacancySection);
     elements.showMyResumesBtn.addEventListener('click', showMyResumesSection);
     
-    // Vacancy tab navigation
+    // Tabs in vacancy section
     elements.showCreateVacancyBtn.addEventListener('click', showCreateVacancyTab);
     elements.showViewVacanciesBtn.addEventListener('click', showViewVacanciesTab);
     
-    // Form submissions
+    // Auth forms
     elements.loginFormElement.addEventListener('submit', (e) => {
         e.preventDefault();
-        const email = elements.loginEmail.value.trim();
+        const email = elements.loginEmail.value;
         const password = elements.loginPassword.value;
         
         if (email && password) {
             loginUser(email, password);
         } else {
-            showNotification('Please enter both email and password', true);
+            showNotification('Please fill in all fields', true);
         }
     });
     
     elements.registerFormElement.addEventListener('submit', (e) => {
         e.preventDefault();
-        
         const userData = {
             name: elements.registerName.value.trim(),
             about: elements.registerAbout.value.trim(),
@@ -1208,19 +1230,27 @@ function attachEventListeners() {
             email: elements.registerEmail.value.trim(),
             phone: elements.registerPhone.value.trim(),
             inn: elements.registerInn.value.trim(),
-            logo: elements.registerLogo.value.trim(),
+            logo: elements.registerLogo.value.trim(), // Assuming this is a URL
             password: elements.registerPassword.value
         };
         
-        // Check if all fields are filled
-        const allFieldsFilled = Object.values(userData).every(value => value !== '');
-        
-        if (allFieldsFilled) {
+        // Check if all required fields are filled
+        if (userData.name && userData.email && userData.password) {
             registerUser(userData);
         } else {
-            showNotification('Please fill in all fields', true);
+            showNotification('Please fill in all required fields', true);
         }
     });
+    
+    // Resume upload form
+    // Add status indicator to the form
+    if (!document.getElementById('upload-status')) {
+        const statusDiv = document.createElement('div');
+        statusDiv.id = 'upload-status';
+        statusDiv.className = 'upload-status';
+        statusDiv.style.display = 'none';
+        elements.resumeUploadFormElement.appendChild(statusDiv);
+    }
     
     elements.resumeUploadFormElement.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -1235,6 +1265,16 @@ function attachEventListeners() {
                 showNotification('Please select only PDF files', true);
                 return;
             }
+            
+            // Show status indicator
+            const statusDiv = document.getElementById('upload-status');
+            statusDiv.innerHTML = `
+                <div class="status-indicator">
+                    <div class="loading-spinner"></div>
+                    <span>Uploading ${files.length} file${files.length > 1 ? 's' : ''}... Please wait.</span>
+                </div>
+            `;
+            statusDiv.style.display = 'block';
             
             uploadResume(vacancyId, Array.from(files));
         } else {

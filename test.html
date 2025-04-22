@@ -3,50 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Test</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Skills Assessment Test</title>
     <link rel="stylesheet" href="test-styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Skills Assessment Test</h1>
+            <h1>Skills Assessment</h1>
             <a href="index.html" class="back-link">← Back to Dashboard</a>
         </header>
-
-        <main>
-            <div id="test-info" class="info-container">
-                <h2 id="test-title">Loading test...</h2>
-                <p id="test-description"></p>
-                <div id="resume-info">
-                    <p>Resume: <span id="resume-name">Loading...</span></p>
-                </div>
-            </div>
-
-            <div id="test-container">
-                <div id="loading-indicator">Loading tests...</div>
-                <div id="test-content" style="display: none;">
-                    <form id="test-form">
-                        <!-- Test content will be inserted here -->
-                    </form>
-                    
-                    <div class="form-actions">
-                        <button id="submit-test" type="button">Submit Answers</button>
-                    </div>
-                </div>
+        
+        <div class="info-container">
+            <h2 id="test-title">Skills Test</h2>
+            <p id="test-description">Please complete all questions in this assessment.</p>
+        </div>
+        
+        <div id="test-container">
+            <div id="loading-indicator">Loading test questions...</div>
+            
+            <div id="test-content" style="display: none;">
+                <form id="test-form">
+                    <!-- Test questions will be inserted here -->
+                </form>
                 
-                <div id="test-results" style="display: none;">
-                    <h2>Test Results</h2>
-                    <div id="results-content"></div>
-                    <p>Your answers have been submitted successfully.</p>
-                    <a href="index.html" class="button-link">Return to Dashboard</a>
+                <div class="form-actions">
+                    <button type="button" id="submit-test">Submit Answers</button>
                 </div>
             </div>
-        </main>
-
-        <div id="notification" class="notification"></div>
+            
+            <div id="test-results" style="display: none;">
+                <h2>Test Results</h2>
+                <div id="results-content">
+                    <!-- Results will be displayed here -->
+                </div>
+                <a href="index.html" class="button-link">Return to Dashboard</a>
+            </div>
+        </div>
     </div>
-
+    
+    <div id="notification" class="notification"></div>
+    
     <script src="test.js"></script>
 </body>
 </html> 
