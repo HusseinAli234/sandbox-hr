@@ -12,7 +12,9 @@ const API_ENDPOINTS = {
     getResumeById: (id) => `${API_BASE_URL}/resumes/${id}`,
     deleteResume: (id) => `${API_BASE_URL}/resumes/${id}`,
     deleteVacancy: (id) => `${API_BASE_URL}/vacancy/${id}`,
-    submitTest: `${API_BASE_URL}/test/submit`
+    submitTest: `${API_BASE_URL}/test/submit`,
+    me: `${API_BASE_URL}/auth/me`,
+    refresh: `${API_BASE_URL}/auth/refresh`
 };
 
 // DOM Elements
@@ -92,11 +94,13 @@ let userResumes = [];
 
 // Helper function for authenticated API requests
 async function fetchWithAuth(url, options = {}) {
+    // Получаем токен из localStorage
     const token = localStorage.getItem('authToken');
     const headers = {
         ...options.headers || {},
     };
     
+    // Добавляем токен в заголовок если он есть
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
@@ -104,8 +108,33 @@ async function fetchWithAuth(url, options = {}) {
     return fetch(url, {
         ...options,
         headers,
-        credentials: 'include' // Keep credentials to support both token and cookie auth
+        credentials: 'include' // Оставляем для совместимости с куками
     });
+}
+
+// Конфигурация JWT
+const config = {
+    JWT_ACCESS_COOKIE_NAME: 'my_access_token',
+    JWT_REFRESH_COOKIE_NAME: 'my_refresh_token'
+};
+
+// Функция для сохранения токена в localStorage
+function setAuthToken(token, refreshToken = null) {
+    if (token) {
+        localStorage.setItem('authToken', token);
+        console.log('Access token saved to localStorage');
+    }
+    
+    if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+        console.log('Refresh token saved to localStorage');
+    }
+}
+
+// Функция для удаления токенов
+function clearAuthTokens() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
 }
 
 // Check authentication status
@@ -959,22 +988,46 @@ async function registerUser(userData) {
         });
         
         const data = await response.json();
+        console.log('Register response:', data);
         
         if (!response.ok) {
-            throw new Error(data.message || 'Registration failed');
+            throw new Error(data.message || data.detail || 'Registration failed');
         }
         
-        // Save auth token explicitly in localStorage
-        if (data.token) {
-            localStorage.setItem('authToken', data.token);
+        // Извлекаем токены из ответа API
+        const accessToken = data.access_token;
+        const refreshToken = data.refresh_token;
+        
+        // Сохраняем токены в localStorage
+        if (accessToken) {
+            setAuthToken(accessToken, refreshToken);
+        } else {
+            console.warn('No tokens received from registration response');
         }
         
-        // Store user info
-        currentUser = {
-            email: userData.email,
-            name: userData.name,
-            ...data.user // In case the API returns user data
-        };
+        // Получаем информацию о пользователе
+        try {
+            const userResponse = await fetchWithAuth(API_ENDPOINTS.me, {
+                method: 'GET'
+            });
+            
+            if (userResponse.ok) {
+                const userData = await userResponse.json();
+                currentUser = userData;
+            } else {
+                // Если не удалось получить данные пользователя, используем переданные
+                currentUser = {
+                    email: userData.email,
+                    name: userData.name
+                };
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            currentUser = {
+                email: userData.email,
+                name: userData.name
+            };
+        }
         
         // Save to local storage
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
@@ -1000,22 +1053,40 @@ async function loginUser(email, password) {
         });
         
         const data = await response.json();
+        console.log('Login response:', data);
         
         if (!response.ok) {
-            throw new Error(data.message || 'Login failed');
+            throw new Error(data.message || data.detail || 'Login failed');
         }
         
-        // Save auth token explicitly in localStorage
-        if (data.token) {
-            localStorage.setItem('authToken', data.token);
+        // Извлекаем токены из ответа API
+        const accessToken = data.access_token;
+        const refreshToken = data.refresh_token;
+        
+        // Сохраняем токены в localStorage
+        if (accessToken) {
+            setAuthToken(accessToken, refreshToken);
+        } else {
+            console.warn('No tokens received from login response');
         }
         
-        // Store user info
-        currentUser = {
-            email,
-            name: data.name,
-            ...data.user // In case the API returns user data
-        };
+        // Получаем информацию о пользователе
+        try {
+            const userResponse = await fetchWithAuth(API_ENDPOINTS.me, {
+                method: 'GET'
+            });
+            
+            if (userResponse.ok) {
+                const userData = await userResponse.json();
+                currentUser = userData;
+            } else {
+                // Если не удалось получить данные пользователя, используем базовые
+                currentUser = { email };
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            currentUser = { email };
+        }
         
         // Save to local storage
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
@@ -1031,15 +1102,17 @@ async function loginUser(email, password) {
 
 async function logoutUser() {
     try {
-        // Try to notify the server, but don't wait for response
-        fetchWithAuth(API_ENDPOINTS.logout, { method: 'POST' })
-            .catch(err => console.log('Logout notification error:', err));
+        // Try to notify the server
+        await fetchWithAuth(API_ENDPOINTS.logout, {
+            method: 'POST'
+        });
         
+    } catch (error) {
+        console.error('Logout error:', error);
     } finally {
         // Always clean up local state regardless of server response
-        // Clear user data and token
+        clearAuthTokens();
         localStorage.removeItem('currentUser');
-        localStorage.removeItem('authToken');
         currentUser = null;
         
         // Reset upload history
@@ -1083,32 +1156,39 @@ async function uploadResume(vacancy_id, files) {
             formData.append('files', file);
         });
         
-        // We can't use fetchWithAuth directly for FormData because we need to avoid setting Content-Type
+        // Получаем токен из localStorage
         const token = localStorage.getItem('authToken');
         const headers = {};
         
+        // Добавляем токен в заголовок если он есть
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
         
         const response = await fetch(uploadUrl, {
             method: 'POST',
-            credentials: 'include',
             headers: headers,
             body: formData
         });
         
         // Handle unauthorized
         if (response.status === 401) {
-            showNotification('Your session has expired. Please log in again.', true);
-            logoutUser();
-            return;
+            // Попытка обновить токен
+            const refreshSuccess = await refreshAccessToken();
+            if (refreshSuccess) {
+                // Повторить запрос
+                return uploadResume(vacancy_id, files);
+            } else {
+                showNotification('Your session has expired. Please log in again.', true);
+                logoutUser();
+                return;
+            }
         }
         
         const data = await response.json();
         
         if (!response.ok) {
-            throw new Error(data.message || 'Failed to upload resume');
+            throw new Error(data.message || data.detail || 'Failed to upload resume');
         }
         
         // Show success message
@@ -1139,6 +1219,52 @@ async function uploadResume(vacancy_id, files) {
         if (statusDiv) {
             statusDiv.style.display = 'none';
         }
+    }
+}
+
+// Функция для обновления access token с использованием refresh token
+async function refreshAccessToken() {
+    try {
+        console.log('Attempting to refresh token');
+        
+        // Получаем refresh token из localStorage
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) {
+            console.log('No refresh token found in localStorage');
+            return false;
+        }
+        
+        // Отправляем запрос с refresh token в заголовке
+        const response = await fetch(API_ENDPOINTS.refresh, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${refreshToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            console.log('Refresh token request failed with status:', response.status);
+            return false;
+        }
+        
+        const data = await response.json();
+        console.log('Refresh response:', data);
+        
+        // Получаем новый access token из ответа
+        const newAccessToken = data.access_token;
+        
+        if (newAccessToken) {
+            // Сохраняем новый токен
+            localStorage.setItem('authToken', newAccessToken);
+            console.log('New access token saved to localStorage');
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        return false;
     }
 }
 
@@ -1431,5 +1557,63 @@ async function deleteVacancy(vacancyId) {
     } catch (error) {
         showNotification(`Error deleting vacancy: ${error.message}`, true);
         console.error('Delete vacancy error:', error);
+    }
+}
+
+// Load vacancies for the dropdown selector
+async function loadVacancies() {
+    try {
+        // Get token from localStorage
+        const token = localStorage.getItem('authToken');
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        // Add auth token if present
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(API_ENDPOINTS.vacancies, {
+            method: 'GET',
+            headers: headers
+        });
+        
+        // Handle unauthorized
+        if (response.status === 401) {
+            // Try to refresh token
+            const refreshSuccess = await refreshAccessToken();
+            if (refreshSuccess) {
+                // Retry the request if refresh successful
+                return loadVacancies();
+            } else {
+                showNotification('Your session has expired. Please log in again.', true);
+                logoutUser();
+                return;
+            }
+        }
+        
+        if (!response.ok) {
+            throw new Error('Failed to load vacancies');
+        }
+        
+        const vacancies = await response.json();
+        
+        // Clear existing options except for the placeholder
+        while (elements.vacancySelector.options.length > 1) {
+            elements.vacancySelector.remove(1);
+        }
+        
+        // Add vacancies to the selector
+        vacancies.forEach(vacancy => {
+            const option = document.createElement('option');
+            option.value = vacancy.id;
+            option.textContent = vacancy.title;
+            elements.vacancySelector.appendChild(option);
+        });
+        
+    } catch (error) {
+        console.error('Error loading vacancies:', error);
+        showNotification('Failed to load vacancies. Please try again later.', true);
     }
 } 
