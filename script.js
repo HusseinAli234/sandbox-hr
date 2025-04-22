@@ -90,36 +90,65 @@ const uploadHistory = [];
 let userVacancies = [];
 let userResumes = [];
 
-// Check if user is logged in (from local storage)
+// Helper function for authenticated API requests
+async function fetchWithAuth(url, options = {}) {
+    const token = localStorage.getItem('authToken');
+    const headers = {
+        ...options.headers || {},
+    };
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include' // Keep credentials to support both token and cookie auth
+    });
+}
+
+// Check authentication status
 function checkAuthStatus() {
     const savedUser = localStorage.getItem('currentUser');
+    const authToken = localStorage.getItem('authToken');
     
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        updateUIForLoggedInUser();
+    if (savedUser && authToken) {
+        try {
+            currentUser = JSON.parse(savedUser);
+            updateUIForLoggedInUser();
+        } catch (e) {
+            console.error('Error parsing saved user data', e);
+            logoutUser();
+        }
+    } else {
+        // If either token or user info is missing, show login view
+        updateUIForLoggedOutUser();
     }
 }
 
-// UI Helpers
+// Function to update UI for logged in users
 function updateUIForLoggedInUser() {
+    // Скрываем все, что связано с неавторизованным состоянием
     elements.loggedOutView.style.display = 'none';
-    elements.loggedInView.style.display = 'block';
     elements.loginForm.style.display = 'none';
     elements.registerForm.style.display = 'none';
-    elements.resumeUploadSection.style.display = 'block';
-    elements.vacancyManagementSection.style.display = 'none';
-    elements.myResumesSection.style.display = 'none';
-    elements.usernameDisplay.textContent = currentUser.name || currentUser.email || 'User';
     
-    // Set active state for resume section button
-    elements.showResumeBtn.classList.add('active');
-    elements.showVacancyBtn.classList.remove('active');
-    elements.showMyResumesBtn.classList.remove('active');
+    // Показываем интерфейс для авторизованных пользователей
+    elements.loggedInView.style.display = 'block';
     
-    // Load vacancies for the dropdown
+    // Set username in UI if available
+    if (currentUser && currentUser.name) {
+        elements.usernameDisplay.textContent = currentUser.name;
+    } else if (currentUser && currentUser.email) {
+        elements.usernameDisplay.textContent = currentUser.email;
+    }
+    
+    // Show resume section by default
+    showResumeSection();
+    
+    // Load initial data
     loadVacanciesForDropdown();
-    
-    // Load upload history from localStorage
     loadUploadHistory();
 }
 
@@ -352,9 +381,8 @@ function renderUploadHistory() {
 // Vacancy functions
 async function createVacancy(vacancyData) {
     try {
-        const response = await fetch(API_ENDPOINTS.createVacancy, {
+        const response = await fetchWithAuth(API_ENDPOINTS.createVacancy, {
             method: 'POST',
-            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -390,9 +418,8 @@ async function fetchVacancies() {
     try {
         elements.vacanciesList.innerHTML = '<p>Loading vacancies...</p>';
         
-        const response = await fetch(API_ENDPOINTS.getVacancies, {
+        const response = await fetchWithAuth(API_ENDPOINTS.getVacancies, {
             method: 'GET',
-            credentials: 'include',
             headers: {
                 "Content-Type": "application/json"
             }
@@ -507,9 +534,8 @@ async function fetchResumes(vacancyId = null) {
             ? API_ENDPOINTS.getResumesByVacancy(vacancyId) 
             : API_ENDPOINTS.getResumes;
         
-        const response = await fetch(endpoint, {
+        const response = await fetchWithAuth(endpoint, {
             method: 'GET',
-            credentials: 'include',
             headers: { "Content-Type": "application/json" }
         });
         
@@ -656,9 +682,8 @@ async function viewResumeDetails(resumeId) {
         elements.resumeDetailContent.innerHTML = '<p>Loading resume details...</p>';
         elements.resumeDetailModal.style.display = 'block';
         
-        const response = await fetch(API_ENDPOINTS.getResumeById(resumeId), {
-            method: 'GET',
-            credentials: 'include'
+        const response = await fetchWithAuth(API_ENDPOINTS.getResumeById(resumeId), {
+            method: 'GET'
         });
         
         if (response.status === 401) {
@@ -849,9 +874,8 @@ async function refreshResumeAnalysis(resumeId) {
         }
         
         // Fetch updated resume data
-        const response = await fetch(API_ENDPOINTS.getResumeById(resumeId), {
-            method: 'GET',
-            credentials: 'include'
+        const response = await fetchWithAuth(API_ENDPOINTS.getResumeById(resumeId), {
+            method: 'GET'
         });
         
         if (response.status === 401) {
@@ -895,9 +919,8 @@ async function deleteResume(resumeId) {
     }
     
     try {
-        const response = await fetch(API_ENDPOINTS.deleteResume(resumeId), {
-            method: 'DELETE',
-            credentials: 'include'
+        const response = await fetchWithAuth(API_ENDPOINTS.deleteResume(resumeId), {
+            method: 'DELETE'
         });
         
         if (response.status === 401) {
@@ -941,11 +964,23 @@ async function registerUser(userData) {
             throw new Error(data.message || 'Registration failed');
         }
         
-        showNotification('Registration successful! You can now log in.');
+        // Save auth token explicitly in localStorage
+        if (data.token) {
+            localStorage.setItem('authToken', data.token);
+        }
         
-        // Switch to login form
-        elements.registerForm.style.display = 'none';
-        elements.loginForm.style.display = 'block';
+        // Store user info
+        currentUser = {
+            email: userData.email,
+            name: userData.name,
+            ...data.user // In case the API returns user data
+        };
+        
+        // Save to local storage
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        
+        showNotification('Registration successful!');
+        updateUIForLoggedInUser();
         
     } catch (error) {
         showNotification(`Registration error: ${error.message}`, true);
@@ -970,9 +1005,15 @@ async function loginUser(email, password) {
             throw new Error(data.message || 'Login failed');
         }
         
+        // Save auth token explicitly in localStorage
+        if (data.token) {
+            localStorage.setItem('authToken', data.token);
+        }
+        
         // Store user info
         currentUser = {
             email,
+            name: data.name,
             ...data.user // In case the API returns user data
         };
         
@@ -990,24 +1031,23 @@ async function loginUser(email, password) {
 
 async function logoutUser() {
     try {
-        await fetch(API_ENDPOINTS.logout, {
-            method: 'POST',
-            credentials: 'include',
-        });
+        // Try to notify the server, but don't wait for response
+        fetchWithAuth(API_ENDPOINTS.logout, { method: 'POST' })
+            .catch(err => console.log('Logout notification error:', err));
         
-        // Clear user data
-        currentUser = null;
+    } finally {
+        // Always clean up local state regardless of server response
+        // Clear user data and token
         localStorage.removeItem('currentUser');
-        
-        showNotification('You have been logged out');
-        updateUIForLoggedOutUser();
-        
-    } catch (error) {
-        console.error('Logout error:', error);
-        // Still logout locally
+        localStorage.removeItem('authToken');
         currentUser = null;
-        localStorage.removeItem('currentUser');
+        
+        // Reset upload history
+        uploadHistory.length = 0;
+        
+        // Update UI
         updateUIForLoggedOutUser();
+        showNotification('Logged out successfully');
     }
 }
 
@@ -1032,7 +1072,7 @@ async function uploadResume(vacancy_id, files) {
         
         const vacancyTitle = selectedVacancy.textContent;
         
-        // Prepare the form data with the files and vacancy ID
+        // Prepare the form data with the files
         const formData = new FormData();
         
         // API expects vacancy_id as a query parameter, not in the form data
@@ -1043,9 +1083,18 @@ async function uploadResume(vacancy_id, files) {
             formData.append('files', file);
         });
         
+        // We can't use fetchWithAuth directly for FormData because we need to avoid setting Content-Type
+        const token = localStorage.getItem('authToken');
+        const headers = {};
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
         const response = await fetch(uploadUrl, {
             method: 'POST',
             credentials: 'include',
+            headers: headers,
             body: formData
         });
         
@@ -1101,9 +1150,8 @@ async function loadVacanciesForDropdown() {
     elements.vacancySelector.appendChild(defaultOption);
     
     try {
-        const response = await fetch(API_ENDPOINTS.getVacancies, {
+        const response = await fetchWithAuth(API_ENDPOINTS.getVacancies, {
             method: 'GET',
-            credentials: 'include',
             headers: {
                 "Content-Type": "application/json"
             }
@@ -1156,9 +1204,8 @@ async function loadVacanciesForFilterDropdown() {
     vacancySelector.appendChild(defaultOption);
     
     try {
-        const response = await fetch(API_ENDPOINTS.getVacancies, {
+        const response = await fetchWithAuth(API_ENDPOINTS.getVacancies, {
             method: 'GET',
-            credentials: 'include',
             headers: { "Content-Type": "application/json" }
         });
         
@@ -1356,9 +1403,8 @@ async function deleteVacancy(vacancyId) {
     }
     
     try {
-        const response = await fetch(API_ENDPOINTS.deleteVacancy(vacancyId), {
-            method: 'DELETE',
-            credentials: 'include'
+        const response = await fetchWithAuth(API_ENDPOINTS.deleteVacancy(vacancyId), {
+            method: 'DELETE'
         });
         
         if (response.status === 401) {
