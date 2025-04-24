@@ -3,22 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Upload Platform</title>
+    <title>Sandbox</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        /* Base styles */
+        /* Base Styles */
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f5f7fa;
+            background-color: #f7f9fc;
             color: #333;
+            min-height: 100vh;
+            overflow-x: hidden; /* Предотвращаем горизонтальную прокрутку */
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 1rem;
+            box-sizing: border-box;
         }
         
         /* Form styles */
@@ -66,37 +69,166 @@
         }
         
         /* Header styles */
-        header {
-            background-color: #fff;
-            box-shadow: 0 1px 10px rgba(0, 0, 0, 0.1);
-            padding: 1rem 0;
-            margin-bottom: 2rem;
+        .main-header {
+            background: linear-gradient(to right, #4a6cf7, #7782f2);
+            color: white;
+            padding: 1.5rem 0;
+            margin-bottom: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
         
         .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-        
-        .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #4a6cf7;
-        }
-        
-        .logo span {
-            color: #333;
-        }
-        
-        .user-controls {
-            display: flex;
-            align-items: center;
+            padding: 0 2rem;
+            flex-wrap: wrap;
             gap: 1rem;
         }
         
-        .welcome-text {
-            margin-right: 1rem;
+        .logo-container {
+            display: flex;
+            flex-direction: column;
+            min-width: 160px;
+        }
+        
+        .logo {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: white;
+            margin: 0;
+            line-height: 1.2;
+            letter-spacing: -0.5px;
+        }
+        
+        .logo span {
+            color: #ffdc5c;
+        }
+        
+        .tagline {
+            font-size: 0.9rem;
+            margin: 0;
+            opacity: 0.8;
+        }
+        
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .auth-btn {
+            padding: 0.7rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .auth-btn i {
+            font-size: 1rem;
+        }
+        
+        .login-btn {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+        
+        .login-btn:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+        }
+        
+        .register-btn {
+            background-color: white;
+            color: #4a6cf7;
+        }
+        
+        .register-btn:hover {
+            background-color: #f8f9fe;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .user-panel {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding-right: 2rem;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 5px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        #username-display {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .main-nav {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            background: transparent;
+            color: white;
+            border: none;
+            padding: 0.7rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+        
+        .nav-btn i {
+            font-size: 1rem;
+        }
+        
+        .nav-btn:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-btn.active {
+            background: rgba(255, 255, 255, 0.15);
+            opacity: 1;
+            font-weight: 600;
+        }
+        
+        .logout-btn {
+            background: rgba(255, 0, 0, 0.15);
+            opacity: 0.9;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255, 0, 0, 0.25);
+            opacity: 1;
         }
         
         /* Navigation */
@@ -192,54 +324,53 @@
         /* Vacancy cards */
         .vacancy-card {
             background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            padding: 1.25rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
             margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+            border-left: 4px solid #4a6cf7;
         }
         
-        .vacancy-header {
+        .vacancy-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .vacancy-card h3 {
+            margin-top: 0;
+            color: #2d3748;
+            font-size: 1.25rem;
+        }
+        
+        .vacancy-card .meta {
             display: flex;
-            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1rem 0;
+            color: #718096;
+            font-size: 0.875rem;
+        }
+        
+        .vacancy-card .description {
+            color: #4a5568;
             margin-bottom: 1rem;
         }
         
-        .vacancy-title {
-            margin: 0 0 0.5rem 0;
-        }
-        
-        .vacancy-location {
-            color: #666;
-            margin-bottom: 0.5rem;
-        }
-        
-        .vacancy-salary {
-            font-weight: bold;
-            color: #4a6cf7;
-        }
-        
-        .vacancy-description {
-            margin-bottom: 1rem;
-            line-height: 1.5;
-        }
-        
-        .vacancy-requirements {
-            margin-bottom: 1rem;
-            line-height: 1.5;
-        }
-        
-        .skills-list {
+        .vacancy-card .tags {
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
+            margin-top: 1rem;
         }
         
-        .skill-tag {
-            background-color: #f1f3f6;
-            padding: 0.3rem 0.75rem;
+        .vacancy-card .tag {
+            background-color: #ebf4ff;
+            color: #4a6cf7;
+            padding: 0.25rem 0.75rem;
             border-radius: 20px;
-            font-size: 0.85rem;
-            color: #555;
+            font-size: 0.75rem;
+            font-weight: 500;
         }
         
         /* Resume cards */
@@ -251,71 +382,66 @@
         
         .resume-card {
             background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            padding: 1.25rem;
-            position: relative;
-            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
         
-        .resume-header {
+        .resume-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .resume-card .candidate-info {
+            display: flex;
+            align-items: center;
             margin-bottom: 1rem;
         }
         
-        .resume-name {
-            margin: 0 0 0.5rem 0;
-        }
-        
-        .resume-location {
-            color: #666;
-        }
-        
-        .resume-skills {
+        .resume-card .candidate-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #e2e8f0;
+            margin-right: 1rem;
             display: flex;
-            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #4a6cf7;
+        }
+        
+        .resume-card .candidate-name {
+            font-weight: 600;
+            color: #2d3748;
+            margin: 0;
+        }
+        
+        .resume-card .vacancy-title {
+            color: #4a6cf7;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .resume-card .upload-date {
+            color: #718096;
+            font-size: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .resume-card .actions {
+            margin-top: auto;
+            display: flex;
+            justify-content: flex-end;
             gap: 0.5rem;
-            margin-bottom: 1.25rem;
         }
         
-        .resume-skill {
-            background-color: #f1f3f6;
-            padding: 0.3rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            color: #555;
-        }
-        
-        .resume-skill.hard {
-            background-color: #e1f5fe;
-            color: #0277bd;
-        }
-        
-        .resume-skill.soft {
-            background-color: #e8f5e9;
-            color: #388e3c;
-        }
-        
-        .resume-actions {
-            display: flex;
-            gap: 0.75rem;
-        }
-        
-        .resume-action-btn {
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-            background: none;
-            font-size: 0.9rem;
-        }
-        
-        .resume-action-btn.view {
-            border: 1px solid #4a6cf7;
-        
-        }s
-        
-        .resume-action-btn.delete {
-            border: 1px solid #f44336;
-        
+        .resume-card .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
         }
         
         /* Modal styles */
@@ -413,13 +539,45 @@
             border-left-color: #cbd5e0;
         }
         
-        .score-title {
+        .score-card.best {
+            border-left-color: #1565c0;
+        }
+        
+        .score-card.good {
+            border-left-color: #2e7d32;
+        }
+        
+        .score-card.average {
+            border-left-color: #e65100;
+        }
+        
+        .score-card.normal {
+            border-left-color: #9e9e9e;
+        }
+        
+        .score-card.best {
+            border-left-color: #1565c0;
+        }
+        
+        .score-card.good {
+            border-left-color: #2e7d32;
+        }
+        
+        .score-card.average {
+            border-left-color: #e65100;
+        }
+        
+        .score-card.normal {
+            border-left-color: #9e9e9e;
+        }
+        
+        .score-card.score-title {
             font-weight: 600;
             margin-bottom: 5px;
             color: #4a5568;
         }
         
-        .score-value {
+        .score-card.score-value {
             font-size: 1.8rem;
             font-weight: 700;
             color: #2d3748;
@@ -950,24 +1108,1060 @@
         
         /* Link to Font Awesome */
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+
+        /* Стилизованный Select Dropdown */
+        .custom-select-container {
+            position: relative;
+            width: 100%;
+        }
+        
+        .custom-select-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .custom-select {
+            position: relative;
+            width: 100%;
+        }
+        
+        .select-selected {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .select-selected:hover {
+            border-color: #2196F3;
+        }
+        
+        .select-selected:focus {
+            outline: none;
+            border-color: #2196F3;
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+        }
+        
+        .select-selected.active {
+            border-radius: 6px 6px 0 0;
+            border-color: #2196F3;
+        }
+        
+        .select-selected:after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-bottom: 2px solid #666;
+            border-right: 2px solid #666;
+            transform: rotate(45deg);
+            transition: transform 0.2s ease;
+        }
+        
+        .select-selected.active:after {
+            transform: rotate(-135deg);
+        }
+        
+        .select-items {
+            position: absolute;
+            background-color: #fff;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #2196F3;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+        }
+        
+        .select-items.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .select-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            display: flex;
+            align-items: center;
+        }
+        
+        .select-item:hover {
+            background-color: #f5f9ff;
+        }
+        
+        .select-item.selected {
+            background-color: #e6f2ff;
+            color: #2196F3;
+        }
+        
+        .select-item .location {
+            margin-left: 8px;
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        /* Additional styles */
+        .form-group {
+            margin-bottom: 18px;
+        }
+        
+        /* Стилизация файлового инпута */
+        .file-input-container {
+            position: relative;
+        }
+        
+        .file-input-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .file-input-button {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-block;
+            text-align: center;
+            min-width: 120px;
+        }
+        
+        .file-input-button:hover {
+            background-color: #e9e9e9;
+            border-color: #ccc;
+        }
+        
+        .file-input-name {
+            margin-left: 10px;
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: calc(100% - 140px);
+        }
+        
+        .file-input-name.multiple {
+            font-style: italic;
+        }
+        
+        /* Скрываем оригинальный input file */
+        input[type="file"] {
+            position: absolute;
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
+        /* Стилизация кнопки отправки */
+        .submit-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 12px 24px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            width: 100%;
+            margin-top: 8px;
+        }
+        
+        .submit-btn:hover {
+            background-color: #0b7dda;
+        }
+        
+        .submit-btn:disabled {
+            background-color: #b0d2f1;
+            cursor: not-allowed;
+        }
+
+        /* Стилизованный Select */
+        .vacancy-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px 16px;
+            font-size: 1rem;
+            width: 100%;
+            cursor: pointer;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="6" viewBox="0 0 12 6"><path fill="%23666" d="M0 0 L6 6 L12 0 Z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 12px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .vacancy-select:hover {
+            border-color: #2196F3;
+            background-color: #f9fbff;
+        }
+        
+        .vacancy-select:focus {
+            outline: none;
+            border-color: #2196F3;
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+        }
+        
+        .vacancy-select option {
+            padding: 12px;
+            color: #333;
+        }
+        
+        .vacancy-select option:checked {
+            background-color: #e3f2fd;
+            color: #2196F3;
+        }
+        
+        /* Стилизация для состояния загрузки */
+        .vacancy-select.loading {
+            background-image: none;
+            border-color: #2196F3;
+            position: relative;
+        }
+        
+        .vacancy-select.loading::after {
+            content: '';
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(33, 150, 243, 0.2);
+            border-radius: 50%;
+            border-top-color: #2196F3;
+            animation: spinner-rotate 0.8s linear infinite;
+        }
+        
+        @keyframes spinner-rotate {
+            to { transform: translateY(-50%) rotate(360deg); }
+        }
+        
+        .vacancy-select:disabled {
+            opacity: 0.8;
+            cursor: not-allowed;
+        }
+        
+        /* Стилизация файлового инпута */
+        .file-input-container {
+            position: relative;
+        }
+        
+        .file-input-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .file-input-button {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-block;
+            text-align: center;
+            min-width: 120px;
+        }
+        
+        .file-input-button:hover {
+            background-color: #e9e9e9;
+            border-color: #ccc;
+        }
+        
+        .file-input-name {
+            margin-left: 10px;
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: calc(100% - 140px);
+        }
+        
+        .file-input-name.multiple {
+            font-style: italic;
+        }
+        
+        /* Скрываем оригинальный input file */
+        input[type="file"] {
+            position: absolute;
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
+        /* Стилизация кнопки отправки */
+        .submit-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 12px 24px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            width: 100%;
+            margin-top: 8px;
+        }
+        
+        .submit-btn:hover {
+            background-color: #0b7dda;
+        }
+        
+        .submit-btn:disabled {
+            background-color: #b0d2f1;
+            cursor: not-allowed;
+        }
+
+        /* Section styles */
+        .section-header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+            color: #3a5ce5;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .section-description {
+            color: #6b7280;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .content-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 2rem;
+        }
+        
+        /* Upload Card */
+        .upload-card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            height: fit-content;
+        }
+        
+        /* Resume Dashboard */
+        .resume-dashboard {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+        }
+        
+        .dashboard-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .dashboard-header h3 {
+            color: #3a5ce5;
+            margin: 0;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background-color: #f9fafb;
+            border-radius: 10px;
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: rgba(74, 108, 247, 0.1);
+            color: #4a6cf7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .stat-content {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            line-height: 1.2;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .recent-activity {
+            margin-bottom: 2rem;
+        }
+        
+        .recent-activity h4, .quick-actions h4 {
+            font-size: 1.1rem;
+            color: #3a5ce5;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .activity-list {
+            background-color: #f9fafb;
+            border-radius: 10px;
+            padding: 1.25rem;
+            min-height: 150px;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            height: 100px;
+        }
+        
+        .empty-state i {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .empty-state p {
+            margin: 0;
+        }
+        
+        .activity-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        
+        .activity-details {
+            flex: 1;
+        }
+        
+        .activity-message {
+            color: #374151;
+            font-weight: 500;
+            margin: 0;
+        }
+        
+        .activity-time {
+            color: #9ca3af;
+            font-size: 0.8rem;
+        }
+        
+        .actions-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .action-button {
+            background-color: #f9fafb;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.25rem;
+            color: #4b5563;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s;
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .action-button:hover {
+            background-color: #f3f4f6;
+            color: #3a5ce5;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .content-wrapper {
+                grid-template-columns: 1fr;
+            }
+            
+            .upload-card {
+                margin-bottom: 2rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions-buttons {
+                flex-direction: column;
+            }
+        }
+
+        /* Адаптивность для хедера */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1.5rem;
+            }
+            
+            .user-panel {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1.5rem;
+                width: 100%;
+            }
+            
+            .user-info {
+                border-right: none;
+                padding-right: 0;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+                width: 100%;
+            }
+            
+            .main-nav {
+                flex-wrap: wrap;
+                width: 100%;
+                justify-content: flex-start;
+                row-gap: 10px;
+            }
+            
+            .auth-buttons {
+                margin-top: 1rem;
+                width: 100%;
+                justify-content: flex-start;
+            }
+            
+            /* Адаптивность для форм */
+            form {
+                padding: 1.5rem;
+            }
+            
+            .form-group label {
+                font-size: 0.9rem;
+            }
+            
+            /* Адаптивность для дашборда */
+            .content-wrapper {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+            }
+            
+            .stat-card {
+                padding: 1rem;
+            }
+            
+            .stat-value {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .main-header {
+                padding: 1rem 0;
+                margin-bottom: 1.5rem;
+                border-radius: 8px;
+            }
+            
+            .header-content {
+                padding: 0 1rem;
+            }
+            
+            .logo {
+                font-size: 1.8rem;
+            }
+            
+            .tagline {
+                font-size: 0.8rem;
+            }
+            
+            .nav-btn {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.9rem;
+                width: calc(50% - 0.5rem); /* Две кнопки в ряд на маленьких экранах */
+                justify-content: center;
+            }
+            
+            .auth-btn {
+                width: 100%;
+                justify-content: center;
+                margin-bottom: 0.5rem;
+            }
+            
+            .auth-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            /* Адаптивность для контента */
+            .section-title {
+                font-size: 1.5rem;
+            }
+            
+            .section-description {
+                font-size: 0.9rem;
+            }
+            
+            /* Адаптивность для дашборда */
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .activity-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .activity-icon {
+                margin-bottom: 0.5rem;
+            }
+        }
+
+        /* Основные стили для секций */
+        .section {
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Улучшение стилей форм */
+        .form-control {
+            display: block;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #495057;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid #ced4da;
+            border-radius: 0.5rem;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        
+        .form-control:focus {
+            color: #495057;
+            background-color: #fff;
+            border-color: #80bdff;
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        
+        /* Стили для кнопок форм */
+        .btn {
+            display: inline-block;
+            font-weight: 500;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: middle;
+            user-select: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            border-radius: 0.5rem;
+            transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, 
+                        border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            color: #fff;
+            background-color: #4a6cf7;
+            border: 1px solid #4a6cf7;
+        }
+        
+        .btn-primary:hover {
+            background-color: #375de8;
+            border-color: #375de8;
+        }
+        
+        .btn-secondary {
+            color: #fff;
+            background-color: #6c757d;
+            border: 1px solid #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #5a6268;
+            border-color: #545b62;
+        }
+        
+        /* Улучшение таблиц */
+        table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #212529;
+            border-collapse: collapse;
+        }
+        
+        table th,
+        table td {
+            padding: 0.75rem;
+            vertical-align: top;
+            border-top: 1px solid #dee2e6;
+            text-align: left;
+        }
+        
+        table thead th {
+            vertical-align: bottom;
+            border-bottom: 2px solid #dee2e6;
+            background-color: #f8f9fa;
+        }
+        
+        table tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+        
+        /* Адаптивность для таблиц на мобильных */
+        @media (max-width: 768px) {
+            .table-responsive {
+                display: block;
+                width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Превращаем таблицу в карточки на мобильных */
+            .table-responsive-stack {
+                display: block;
+            }
+            
+            .table-responsive-stack thead {
+                display: none;
+            }
+            
+            .table-responsive-stack tbody tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #dee2e6;
+                border-radius: 0.5rem;
+                padding: 0.5rem;
+            }
+            
+            .table-responsive-stack td {
+                display: block;
+                text-align: right;
+                border-top: none;
+                padding: 0.5rem;
+            }
+            
+            .table-responsive-stack td:before {
+                content: attr(data-label);
+                float: left;
+                font-weight: bold;
+            }
+        }
+
+        /* Стили для тестов и вопросов */
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .question-card {
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #805ad5;
+        }
+        
+        .question-number {
+            font-size: 0.875rem;
+            color: #805ad5;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .question-text {
+            font-size: 1.125rem;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+        
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .option-item {
+            margin-bottom: 0.75rem;
+        }
+        
+        .option-label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        
+        .option-label:hover {
+            background-color: #f7fafc;
+        }
+        
+        .option-radio {
+            margin-right: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        .option-text {
+            flex: 1;
+        }
+        
+        .test-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+        
+        /* Стили для результатов тестов */
+        .result-summary {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .result-score {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #4a6cf7;
+            margin-bottom: 0.5rem;
+        }
+        
+        .result-text {
+            font-size: 1.25rem;
+            color: #4a5568;
+            margin-bottom: 1rem;
+        }
+        
+        .result-details {
+            margin-top: 2rem;
+        }
+        
+        .detail-card {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .correct-answer {
+            color: #48bb78;
+            font-weight: 500;
+        }
+        
+        .incorrect-answer {
+            color: #f56565;
+            font-weight: 500;
+        }
+        
+        .score-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .score-card {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .score-card .score-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+        }
+        
+        .score-card .score-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4a6cf7;
+        }
+        
+        /* Адаптивность для тестов на мобильных */
+        @media (max-width: 768px) {
+            .test-controls {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .test-controls .btn {
+                width: 100%;
+            }
+            
+            .score-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .question-card {
+                padding: 1rem;
+            }
+            
+            .option-label {
+                padding: 0.5rem;
+            }
+            
+            .result-score {
+                font-size: 2.5rem;
+            }
+            
+            .result-text {
+                font-size: 1rem;
+            }
+            
+            .score-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1 style="margin-left: 10px;">Sandbox</h1>
-            <div id="user-status">
-                <div id="logged-out-view">
-                    <button id="show-login">Login</button>
-                    <button id="show-register">Register</button>
+        <header class="main-header">
+            <div class="header-content">
+                <div class="logo-container">
+                    <h1 class="logo">Sand<span>Box</span></h1>
+                    <p class="tagline">Smart Resume Management</p>
                 </div>
-                <div id="logged-in-view" style="display: none;">
-                    <span id="username-display"></span>
-                    <button id="logout-btn">Logout</button>
-                    <div class="user-actions">
-                        <button id="show-resume-section" class="action-btn active">Resume Upload</button>
-                        <button id="show-vacancy-section" class="action-btn">Vacancy Management</button>
-                        <button id="show-my-resumes-section" class="action-btn">My Resumes</button>
+                <div id="user-status">
+                    <div id="logged-out-view" class="auth-buttons">
+                        <button id="show-login" class="auth-btn login-btn"><i class="fas fa-sign-in-alt"></i> Login</button>
+                        <button id="show-register" class="auth-btn register-btn"><i class="fas fa-user-plus"></i> Register</button>
+                    </div>
+                    <div id="logged-in-view" class="user-panel" style="display: none;">
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <span id="username-display"></span>
+                        </div>
+                        <nav class="main-nav">
+                            <button id="show-resume-section" class="nav-btn active"><i class="fas fa-file-upload"></i> Resume Upload</button>
+                            <button id="show-vacancy-section" class="nav-btn"><i class="fas fa-briefcase"></i> Vacancies</button>
+                            <button id="show-my-resumes-section" class="nav-btn"><i class="fas fa-folder-open"></i> My Resumes</button>
+                            <button id="logout-btn" class="nav-btn logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                        </nav>
                     </div>
                 </div>
             </div>
@@ -1033,31 +2227,104 @@
 
             <!-- Resume Upload Section (visible when logged in) -->
             <div id="resume-upload-section" style="display: none;">
-                <h2>Upload Resume</h2>
-                <p>Submit your resume for a job vacancy</p>
+                <div class="section-header">
+                    <h2 class="section-title"><i class="fas fa-file-upload"></i> Upload Resume</h2>
+                    <p class="section-description">Submit your resume to apply for open positions</p>
+                </div>
                 
-                <form id="resume-upload-form">
-                    <div class="form-group">
-                        <label for="vacancy-selector">Select Vacancy</label>
-                        <select id="vacancy-selector" required>
-                            <option value="">-- Select a vacancy --</option>
-                        </select>
+                <div class="content-wrapper">
+                    <div class="upload-card">
+                        <form id="resume-upload-form">
+                            <div class="form-group">
+                                <label for="vacancy-selector">Select Vacancy</label>
+                                <select id="vacancy-selector" class="vacancy-select" required>
+                                    <option value="">-- Select a vacancy --</option>
+                                </select>
+                            </div>
+                            
+                            <input type="hidden" id="vacancy-id">
+                            
+                            <div class="form-group file-input-container">
+                                <label for="resume-file">Upload PDF (Max 5MB)</label>
+                                <div class="file-input-wrapper">
+                                    <label for="resume-file" class="file-input-button">Choose files</label>
+                                    <span class="file-input-name">No file chosen</span>
+                                    <input type="file" id="resume-file" accept="application/pdf" required multiple>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="submit-btn">Upload Resume</button>
+                        </form>
                     </div>
                     
-                    <input type="hidden" id="vacancy-id">
-                    
-                    <div class="form-group">
-                        <label for="resume-file">Upload PDF (Max 5MB)</label>
-                        <input type="file" id="resume-file" accept="application/pdf" required multiple>
-                    </div>
-                    
-                    <button type="submit" class="submit-btn">Upload Resume</button>
-                </form>
-                
-                <div class="upload-history">
-                    <h3>Upload History</h3>
-                    <div id="upload-history-list">
-                        <!-- Upload history items will be populated here -->
+                    <div class="resume-dashboard">
+                        <div class="dashboard-header">
+                            <h3><i class="fas fa-chart-line"></i> Resume Dashboard</h3>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-value" id="total-resumes">0</span>
+                                    <span class="stat-label">Total Resumes</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-briefcase"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-value" id="applied-vacancies">0</span>
+                                    <span class="stat-label">Applied Vacancies</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-value" id="best-match">0%</span>
+                                    <span class="stat-label">Best Match Score</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-value" id="last-upload">-</span>
+                                    <span class="stat-label">Last Upload</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="recent-activity">
+                            <h4><i class="fas fa-history"></i> Recent Activity</h4>
+                            <div class="activity-list" id="recent-activity-list">
+                                <div class="empty-state">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>No recent activity to display</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="quick-actions">
+                            <h4><i class="fas fa-bolt"></i> Quick Actions</h4>
+                            <div class="actions-buttons">
+                                <button id="view-all-resumes" class="action-button">
+                                    <i class="fas fa-folder-open"></i> View All Resumes
+                                </button>
+                                <button id="refresh-dashboard" class="action-button">
+                                    <i class="fas fa-sync-alt"></i> Refresh Dashboard
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

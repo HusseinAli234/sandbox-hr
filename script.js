@@ -94,22 +94,32 @@ let userResumes = [];
 
 // Helper function for authenticated API requests
 async function fetchWithAuth(url, options = {}) {
-    // Получаем токен из localStorage
-    const token = localStorage.getItem('authToken');
-    const headers = {
-        ...options.headers || {},
-    };
-    
-    // Добавляем токен в заголовок если он есть
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+    try {
+        // Получаем токен из localStorage
+        const token = localStorage.getItem('authToken');
+        const headers = {
+            ...options.headers || {},
+        };
+        
+        // Добавляем токен в заголовок если он есть
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        // Проверка доступности сети
+        if (!navigator.onLine) {
+            throw new Error('No internet connection. Please check your network and try again.');
+        }
+        
+        return fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include' // Оставляем для совместимости с куками
+        });
+    } catch (error) {
+        console.error(`Network error when fetching ${url}:`, error);
+        throw new Error(error.message || 'Network error. Please check your connection and try again.');
     }
-    
-    return fetch(url, {
-        ...options,
-        headers,
-        credentials: 'include' // Оставляем для совместимости с куками
-    });
 }
 
 // Конфигурация JWT
@@ -158,31 +168,43 @@ function checkAuthStatus() {
 
 // Function to update UI for logged in users
 function updateUIForLoggedInUser() {
-    // Скрываем все, что связано с неавторизованным состоянием
-    elements.loggedOutView.style.display = 'none';
-    elements.loginForm.style.display = 'none';
-    elements.registerForm.style.display = 'none';
-    
-    // Показываем интерфейс для авторизованных пользователей
-    elements.loggedInView.style.display = 'block';
-    
-    // Set username in UI if available
-    if (currentUser && currentUser.name) {
-        elements.usernameDisplay.textContent = currentUser.name;
-    } else if (currentUser && currentUser.email) {
-        elements.usernameDisplay.textContent = currentUser.email;
+    try {
+        // Скрываем все, что связано с неавторизованным состоянием
+        if (elements.loggedOutView) elements.loggedOutView.style.display = 'none';
+        if (elements.loginForm) elements.loginForm.style.display = 'none';
+        if (elements.registerForm) elements.registerForm.style.display = 'none';
+        
+        // Показываем интерфейс для авторизованных пользователей
+        if (elements.loggedInView) elements.loggedInView.style.display = 'block';
+        
+        // Set username in UI if available
+        if (elements.usernameDisplay) {
+            if (currentUser && currentUser.name) {
+                elements.usernameDisplay.textContent = currentUser.name;
+            } else if (currentUser && currentUser.email) {
+                elements.usernameDisplay.textContent = currentUser.email;
+            }
+        }
+        
+        // Show resume section by default
+        showResumeSection();
+        
+        // Load initial data
+        loadVacanciesForDropdown();
+        
+        // Проверяем наличие элемента истории загрузок перед вызовом функции
+        if (document.getElementById('upload-history-list')) {
+            loadUploadHistory();
+        } else {
+            console.log('Upload history list element not found, skipping history load');
+        }
+    } catch (error) {
+        console.error('Error in updateUIForLoggedInUser:', error);
     }
-    
-    // Show resume section by default
-    showResumeSection();
-    
-    // Load initial data
-    loadVacanciesForDropdown();
-    loadUploadHistory();
 }
 
 function updateUIForLoggedOutUser() {
-    elements.loggedOutView.style.display = 'block';
+    elements.loggedOutView.style.display = 'flex';
     elements.loggedInView.style.display = 'none';
     elements.loginForm.style.display = 'block';
     elements.registerForm.style.display = 'none';
@@ -204,8 +226,11 @@ function showResumeSection() {
     elements.showVacancyBtn.classList.remove('active');
     elements.showMyResumesBtn.classList.remove('active');
     
-    // Load vacancies for the dropdown if not already loaded
+    // Загружаем данные для dropdown
     loadVacanciesForDropdown();
+    
+    // Обновляем дашборд
+    updateDashboard();
 }
 
 function showVacancySection() {
@@ -303,77 +328,76 @@ function showNotification(message, isError = false) {
 }
 
 // History management
-function addToUploadHistory(vacancyId, vacancyTitle, filename, timestamp, isMultipleUpload = false) {
-    let historyItem;
-    
-    if (isMultipleUpload) {
-        // Check if there's already a batch upload entry with this timestamp
-        const existingBatchIndex = uploadHistory.findIndex(item => 
-            item.isBatch && item.timestamp === timestamp && item.vacancyId === vacancyId);
-        
-        if (existingBatchIndex !== -1) {
-            // Update existing batch entry
-            uploadHistory[existingBatchIndex].count += 1;
-            uploadHistory[existingBatchIndex].files.push(filename);
-            
-            // Keep list at max 10 items
-            if (uploadHistory.length > 10) {
-                uploadHistory.pop();
-            }
-            
-            // Save to localStorage
-            localStorage.setItem(`uploadHistory_${currentUser.email}`, JSON.stringify(uploadHistory));
-            
-            // Update UI
-            renderUploadHistory();
-            return;
-        }
-        
-        // Create a new batch entry
-        historyItem = { 
+function addToUploadHistory(vacancyId, vacancyTitle, filename, timestamp, isMultipleUpload = false, count = 1) {
+    try {
+        // Создаем новую запись истории
+        const historyItem = {
             vacancyId,
             vacancyTitle,
-            filename, 
-            timestamp,
-            isBatch: true,
-            count: 1,
-            files: [filename]
+            filename,
+            timestamp: timestamp instanceof Date ? timestamp.toISOString() : timestamp,
+            isBatch: isMultipleUpload,
+            count: isMultipleUpload ? count : 1
         };
-    } else {
-        // Single file upload
-        historyItem = { vacancyId, vacancyTitle, filename, timestamp, isBatch: false };
+        
+        // Добавляем в начало массива истории
+        uploadHistory.unshift(historyItem);
+        
+        // Ограничиваем размер истории до 20 записей
+        if (uploadHistory.length > 20) {
+            uploadHistory.length = 20;
+        }
+        
+        // Сохраняем в localStorage
+        try {
+            localStorage.setItem('uploadHistory', JSON.stringify(uploadHistory));
+        } catch (storageError) {
+            console.error('Error saving upload history to localStorage:', storageError);
+        }
+        
+        // Обновляем отображение, если элемент существует
+        if (elements.uploadHistoryList) {
+            renderUploadHistory();
+        }
+    } catch (error) {
+        console.error('Error adding to upload history:', error);
+        // Продолжаем работу даже при ошибке добавления записи в историю
     }
-    
-    uploadHistory.unshift(historyItem); // Add to beginning of array
-    
-    // Keep only the last 10 items
-    if (uploadHistory.length > 10) {
-        uploadHistory.pop();
-    }
-    
-    // Save to localStorage
-    localStorage.setItem(`uploadHistory_${currentUser.email}`, JSON.stringify(uploadHistory));
-    
-    // Update UI
-    renderUploadHistory();
 }
 
 function loadUploadHistory() {
-    if (!currentUser || !currentUser.email) return;
-    
-    const savedHistory = localStorage.getItem(`uploadHistory_${currentUser.email}`);
-    if (savedHistory) {
-        // Replace the array contents
-        uploadHistory.length = 0;
-        const parsedHistory = JSON.parse(savedHistory);
-        uploadHistory.push(...parsedHistory);
+    try {
+        // Проверяем наличие элемента истории загрузок
+        if (!elements.uploadHistoryList) {
+            console.warn('Upload history list element not found, skipping load');
+            return;
+        }
         
-        // Update UI
+        // Загружаем историю из localStorage, если есть
+        const savedHistory = localStorage.getItem('uploadHistory');
+        if (savedHistory) {
+            const parsedHistory = JSON.parse(savedHistory);
+            if (Array.isArray(parsedHistory)) {
+                uploadHistory.length = 0; // Очищаем текущую историю
+                uploadHistory.push(...parsedHistory); // Добавляем сохраненные данные
+            }
+        }
+        
+        // Рендерим историю
         renderUploadHistory();
+    } catch (error) {
+        console.error('Error loading upload history:', error);
+        // Продолжаем работу даже при ошибке загрузки истории
     }
 }
 
 function renderUploadHistory() {
+    // Проверяем наличие элемента перед обновлением
+    if (!elements.uploadHistoryList) {
+        console.warn('Upload history list element not found');
+        return;
+    }
+    
     elements.uploadHistoryList.innerHTML = '';
     
     if (uploadHistory.length === 0) {
@@ -556,38 +580,98 @@ function renderVacancies() {
 // Resume functions
 async function fetchResumes(vacancyId = null) {
     try {
-        elements.resumesListContainer.innerHTML = '<p>Loading your resumes...</p>';
+        // Проверяем, есть ли элемент для отображения резюме
+        const container = vacancyId === null ? 
+            document.getElementById('resumes-list-container') : 
+            elements.resumesListContainer;
+            
+        if (container) {
+            container.innerHTML = '<p>Loading your resumes...</p>';
+        }
+        
+        // Проверка доступности сети
+        if (!navigator.onLine) {
+            throw new Error('No internet connection. Please check your network and try again.');
+        }
         
         // Choose the appropriate endpoint based on whether a vacancy ID is provided
         const endpoint = vacancyId 
             ? API_ENDPOINTS.getResumesByVacancy(vacancyId) 
             : API_ENDPOINTS.getResumes;
+            
+        // Создаем контроллер для возможности отмены запроса по тайм-ауту
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 секунд тайм-аут
         
-        const response = await fetchWithAuth(endpoint, {
-            method: 'GET',
-            headers: { "Content-Type": "application/json" }
-        });
-        
-        // Handle unauthorized
-        if (response.status === 401) {
-            showNotification('Your session has expired. Please log in again.', true);
-            logoutUser();
-            return;
+        try {
+            const response = await fetchWithAuth(endpoint, {
+                method: 'GET',
+                headers: { "Content-Type": "application/json" },
+                signal: controller.signal
+            });
+            
+            // Очищаем тайм-аут
+            clearTimeout(timeoutId);
+            
+            // Handle unauthorized
+            if (response.status === 401) {
+                showNotification('Your session has expired. Please log in again.', true);
+                logoutUser();
+                return null;
+            }
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage;
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorData.detail || 'Failed to fetch resumes';
+                } catch (e) {
+                    errorMessage = `Failed to fetch resumes. Server responded with status ${response.status}`;
+                }
+                throw new Error(errorMessage);
+            }
+            
+            let data;
+            try {
+                data = await response.json();
+            } catch (jsonError) {
+                console.warn('Could not parse JSON response for resumes');
+                throw new Error('Invalid response format from server');
+            }
+            
+            // Store resumes and render them if needed
+            userResumes = data;
+            if (container) {
+                renderResumes(vacancyId);
+            }
+            
+            return data;
+            
+        } catch (fetchError) {
+            // Очищаем тайм-аут при ошибке
+            clearTimeout(timeoutId);
+            
+            // Обрабатываем конкретный тип ошибки
+            if (fetchError.name === 'AbortError') {
+                throw new Error('Request timed out. Please try again later.');
+            }
+            throw fetchError;
         }
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || 'Failed to fetch resumes');
-        }
-        
-        // Store resumes and render them
-        userResumes = data;
-        renderResumes(vacancyId);
         
     } catch (error) {
-        elements.resumesListContainer.innerHTML = `<p class="error">Error loading resumes: ${error.message}</p>`;
         console.error('Fetch resumes error:', error);
+        
+        // Обновляем UI только если есть контейнер
+        const container = vacancyId === null ? 
+            document.getElementById('resumes-list-container') : 
+            elements.resumesListContainer;
+            
+        if (container) {
+            container.innerHTML = `<p class="error">Error loading resumes: ${error.message}</p>`;
+        }
+        
+        return null;
     }
 }
 
@@ -1270,99 +1354,124 @@ async function logoutUser() {
 
 // File upload function
 async function uploadResume(vacancy_id, files) {
-    // Store button reference and original text outside the try block
-    const uploadBtn = elements.resumeUploadFormElement.querySelector('button[type="submit"]');
-    const originalBtnText = uploadBtn.textContent;
+    // Показываем индикатор загрузки
+    showUploadStatus('Uploading resume...', true);
     
     try {
-        // Show loading indicator
-        uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '<span class="loading-spinner"></span> Uploading...';
-        
-        // Get vacancy title for history
-        const selectedVacancy = Array.from(elements.vacancySelector.options)
-            .find(option => option.value === vacancy_id);
-        
-        if (!selectedVacancy) {
-            throw new Error('Selected vacancy not found');
+        // Проверка доступности сети
+        if (!navigator.onLine) {
+            throw new Error('No internet connection. Please check your network and try again.');
         }
         
-        const vacancyTitle = selectedVacancy.textContent;
+        // Получаем название вакансии для отображения в истории
+        const vacancyTitle = getVacancyTitle(vacancy_id);
         
-        // Prepare the form data with the files
+        // Формируем URL для загрузки с правильным параметром vacancy_id
+        const url = `${API_ENDPOINTS.uploadPdf}?vacancy_id=${vacancy_id}`;
+        
+        // Подготавливаем данные формы
         const formData = new FormData();
         
-        // API expects vacancy_id as a query parameter, not in the form data
-        const uploadUrl = `${API_ENDPOINTS.uploadPdf}?vacancy_id=${vacancy_id}`;
-        
-        // Add all files to the FormData
-        files.forEach(file => {
+        // Добавляем все файлы в FormData с правильным именем поля
+        Array.from(files).forEach(file => {
             formData.append('files', file);
         });
         
-        // Получаем токен из localStorage
-        const token = localStorage.getItem('authToken');
-        const headers = {};
+        // Создаем контроллер для возможности отмены запроса по тайм-ауту
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд тайм-аут
         
-        // Добавляем токен в заголовок если он есть
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        const response = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: headers,
-            body: formData
-        });
-        
-        // Handle unauthorized
-        if (response.status === 401) {
-            // Попытка обновить токен
-            const refreshSuccess = await refreshAccessToken();
-            if (refreshSuccess) {
-                // Повторить запрос
-                return uploadResume(vacancy_id, files);
-            } else {
-                showNotification('Your session has expired. Please log in again.', true);
-                logoutUser();
-                return;
+        try {
+            // Отправляем запрос на сервер
+            const response = await fetchWithAuth(url, {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+            
+            // Очищаем тайм-аут
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                // Проверяем, если ошибка связана с невалидным токеном
+                if (response.status === 401) {
+                    // Пробуем обновить токен и повторить запрос
+                    const refreshSuccess = await refreshAccessToken();
+                    if (refreshSuccess) {
+                        // Повторяем запрос с новым токеном
+                        return uploadResume(vacancy_id, files);
+                    } else {
+                        throw new Error('Session expired. Please login again.');
+                    }
+                }
+                
+                try {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to upload resume');
+                } catch (jsonError) {
+                    throw new Error(`Failed to upload resume. Server responded with status ${response.status}`);
+                }
             }
+            
+            // Обрабатываем успешный ответ
+            let responseData;
+            try {
+                responseData = await response.json();
+            } catch (jsonError) {
+                console.warn('Could not parse JSON response, but upload seems successful');
+                responseData = { success: true };
+            }
+            
+            // Показываем уведомление об успешной загрузке
+            showNotification('Resume uploaded successfully!');
+            
+            // Добавляем информацию в историю загрузок
+            if (files.length === 1) {
+                addToUploadHistory(vacancy_id, vacancyTitle, files[0].name, new Date());
+            } else {
+                addToUploadHistory(vacancy_id, vacancyTitle, `${files.length} files`, new Date(), true, files.length);
+            }
+            
+            // Обновляем историю загрузок если элемент существует
+            if (document.getElementById('upload-history-list')) {
+                renderUploadHistory();
+            }
+            
+            // Обновляем дашборд с новыми данными если элементы существуют
+            if (document.getElementById('total-resumes')) {
+                updateDashboard();
+            }
+            
+            // Очищаем форму
+            elements.resumeUploadFormElement.reset();
+            
+            // Обновляем имя файла, если элемент существует
+            const fileNameElement = document.querySelector('.file-input-name');
+            if (fileNameElement) {
+                fileNameElement.textContent = 'No file chosen';
+                fileNameElement.classList.remove('multiple');
+            }
+            
+            // Сбрасываем статус загрузки
+            hideUploadStatus();
+            
+            return responseData;
+        } catch (fetchError) {
+            // Очищаем тайм-аут при ошибке
+            clearTimeout(timeoutId);
+            
+            // Перебрасываем ошибку выше
+            if (fetchError.name === 'AbortError') {
+                throw new Error('Request timed out. Please try again later.');
+            }
+            throw fetchError;
         }
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || data.detail || 'Failed to upload resume');
-        }
-        
-        // Show success message
-        showNotification('Resume uploaded successfully!');
-        
-        // Add to upload history
-        if (files.length === 1) {
-            // Single file upload
-            addToUploadHistory(vacancy_id, vacancyTitle, files[0].name, new Date().toISOString());
-        } else {
-            // Multiple files upload
-            addToUploadHistory(vacancy_id, vacancyTitle, null, new Date().toISOString(), true, files.length);
-        }
-        
-        // Reset form
-        elements.resumeUploadFormElement.reset();
         
     } catch (error) {
+        console.error('Error uploading resume:', error);
         showNotification(`Error uploading resume: ${error.message}`, true);
-        console.error('Upload error:', error);
-    } finally {
-        // Restore button state
-        uploadBtn.disabled = false;
-        uploadBtn.textContent = originalBtnText;
-        
-        // Hide status indicator
-        const statusDiv = document.getElementById('upload-status');
-        if (statusDiv) {
-            statusDiv.style.display = 'none';
-        }
+        hideUploadStatus();
+        throw error;
     }
 }
 
@@ -1415,17 +1524,27 @@ async function refreshAccessToken() {
 // New function to load vacancies for the dropdown
 async function loadVacanciesForDropdown() {
     try {
-        // Сохраняем первую опцию (placeholder)
-        const defaultOption = elements.vacancySelector.options[0];
+        // Показываем состояние загрузки
+        elements.vacancySelector.disabled = true;
+        elements.vacancySelector.classList.add('loading');
         
-        // Полностью очищаем селектор
+        // Очищаем селект, оставляя первую опцию
+        const defaultOption = elements.vacancySelector.options[0];
         elements.vacancySelector.innerHTML = '';
         
-        // Возвращаем первую опцию обратно
         if (defaultOption) {
             elements.vacancySelector.appendChild(defaultOption);
         }
         
+        // Добавляем опцию "Loading..."
+        const loadingOption = document.createElement('option');
+        loadingOption.value = "";
+        loadingOption.textContent = "Loading vacancies...";
+        loadingOption.disabled = true;
+        loadingOption.selected = true;
+        elements.vacancySelector.appendChild(loadingOption);
+        
+        // Получаем данные с сервера
         const response = await fetchWithAuth(API_ENDPOINTS.getVacancies, {
             method: 'GET',
             headers: {
@@ -1439,17 +1558,31 @@ async function loadVacanciesForDropdown() {
         
         const vacancies = await response.json();
         
+        // Убираем состояние загрузки
+        elements.vacancySelector.classList.remove('loading');
+        elements.vacancySelector.disabled = false;
+        
+        // Очищаем селект, оставляя дефолтную опцию
+        elements.vacancySelector.innerHTML = '';
+        if (defaultOption) {
+            elements.vacancySelector.appendChild(defaultOption);
+        }
+        
         if (vacancies && vacancies.length > 0) {
-            // Add options to the dropdown
+            // Добавляем опции в селект
             vacancies.forEach(vacancy => {
                 const option = document.createElement('option');
                 option.value = vacancy.id;
-                option.textContent = vacancy.title;
+                option.textContent = `${vacancy.title} (${vacancy.location})`;
+                
+                // Добавляем дата-атрибуты для доп. информации
                 option.setAttribute('data-location', vacancy.location);
+                option.setAttribute('data-title', vacancy.title);
+                
                 elements.vacancySelector.appendChild(option);
             });
         } else {
-            // Add a disabled option if no vacancies
+            // Добавляем опцию, если нет вакансий
             const option = document.createElement('option');
             option.value = "";
             option.textContent = "No vacancies available";
@@ -1458,14 +1591,26 @@ async function loadVacanciesForDropdown() {
         }
     } catch (error) {
         console.error('Error loading vacancies for dropdown:', error);
-        showNotification('Failed to load vacancies. Please try again later.', true);
         
-        // Add a disabled option indicating the error
+        // Убираем состояние загрузки
+        elements.vacancySelector.classList.remove('loading');
+        elements.vacancySelector.disabled = false;
+        
+        // Очищаем селект, оставляя дефолтную опцию
+        elements.vacancySelector.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = "";
+        defaultOption.textContent = "-- Select a vacancy --";
+        elements.vacancySelector.appendChild(defaultOption);
+        
+        // Добавляем опцию с сообщением об ошибке
         const option = document.createElement('option');
         option.value = "";
         option.textContent = "Error loading vacancies";
         option.disabled = true;
         elements.vacancySelector.appendChild(option);
+        
+        showNotification('Failed to load vacancies. Please try again later.', true);
     }
 }
 
@@ -1502,7 +1647,7 @@ async function loadVacanciesForFilterDropdown() {
             vacancies.forEach(vacancy => {
                 const option = document.createElement('option');
                 option.value = vacancy.id;
-                option.textContent = vacancy.title;
+                option.textContent = `${vacancy.title} (${vacancy.location})`;
                 vacancySelector.appendChild(option);
             });
         } else {
@@ -1550,6 +1695,31 @@ function attachEventListeners() {
     elements.showCreateVacancyBtn.addEventListener('click', showCreateVacancyTab);
     elements.showViewVacanciesBtn.addEventListener('click', showViewVacanciesTab);
     
+    // Дашборд действия
+    document.getElementById('view-all-resumes').addEventListener('click', () => {
+        showMyResumesSection();
+    });
+    
+    document.getElementById('refresh-dashboard').addEventListener('click', () => {
+        const refreshBtn = document.getElementById('refresh-dashboard');
+        const originalText = refreshBtn.innerHTML;
+        
+        // Показываем индикатор загрузки
+        refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Refreshing...';
+        refreshBtn.disabled = true;
+        
+        // Обновляем дашборд
+        updateDashboard()
+            .finally(() => {
+                // Восстанавливаем кнопку
+                setTimeout(() => {
+                    refreshBtn.innerHTML = originalText;
+                    refreshBtn.disabled = false;
+                    showNotification('Dashboard refreshed successfully!');
+                }, 800);
+            });
+    });
+    
     // Auth forms
     elements.loginFormElement.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -1593,6 +1763,26 @@ function attachEventListeners() {
         statusDiv.style.display = 'none';
         elements.resumeUploadFormElement.appendChild(statusDiv);
     }
+    
+    // Обработчик выбора файлов
+    elements.resumeFile.addEventListener('change', function() {
+        const fileNameElement = document.querySelector('.file-input-name');
+        
+        if (this.files.length > 0) {
+            if (this.files.length === 1) {
+                // Показываем имя одного файла
+                fileNameElement.textContent = this.files[0].name;
+                fileNameElement.classList.remove('multiple');
+            } else {
+                // Показываем количество выбранных файлов
+                fileNameElement.textContent = `${this.files.length} files selected`;
+                fileNameElement.classList.add('multiple');
+            }
+        } else {
+            fileNameElement.textContent = 'No file chosen';
+            fileNameElement.classList.remove('multiple');
+        }
+    });
     
     elements.resumeUploadFormElement.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -1685,8 +1875,54 @@ function attachEventListeners() {
 
 // Initialize the application
 function init() {
-    checkAuthStatus();
-    attachEventListeners();
+    try {
+        console.log('Initializing application...');
+        
+        // Проверка наличия необходимых элементов интерфейса
+        const missingElements = [];
+        
+        Object.entries(elements).forEach(([key, element]) => {
+            if (!element) {
+                missingElements.push(key);
+                console.warn(`Missing UI element: ${key}`);
+            }
+        });
+        
+        if (missingElements.length > 0) {
+            console.warn(`Missing ${missingElements.length} UI elements. Some functions may not work properly.`);
+        }
+        
+        // Check auth status
+        checkAuthStatus();
+        
+        // Attach event listeners
+        attachEventListeners();
+        
+        // Инициализируем дополнительные компоненты с проверкой наличия элементов
+        // Это делаем после небольшой задержки, чтобы дать UI время на отрисовку
+        setTimeout(() => {
+            try {
+                const isLoggedIn = localStorage.getItem('authToken') !== null;
+                if (isLoggedIn) {
+                    // Загружаем данные только если пользователь авторизован
+                    if (elements.vacancySelector) {
+                        loadVacanciesForDropdown();
+                    }
+                    
+                    // Инициализируем дашборд, если элементы существуют
+                    if (document.getElementById('total-resumes')) {
+                        updateDashboard();
+                    }
+                }
+                
+                console.log('Application initialized successfully');
+            } catch (delayedError) {
+                console.error('Error in delayed initialization:', delayedError);
+            }
+        }, 500);
+    } catch (error) {
+        console.error('Error during application initialization:', error);
+    }
 }
 
 // Start the application when DOM is fully loaded
@@ -1810,4 +2046,195 @@ async function loadVacancies() {
         option.disabled = true;
         elements.vacancySelector.appendChild(option);
     }
+}
+
+// Функция для обновления дашборда с резюме
+async function updateDashboard() {
+    try {
+        // Загружаем все резюме пользователя
+        const resumes = await fetchResumes();
+        
+        // Проверка на null или undefined
+        if (!resumes || !Array.isArray(resumes)) {
+            console.error('Failed to fetch resumes for dashboard');
+            return;
+        }
+        
+        // Проверяем наличие элементов на странице
+        const totalResumesElement = document.getElementById('total-resumes');
+        const appliedVacanciesElement = document.getElementById('applied-vacancies');
+        const bestMatchElement = document.getElementById('best-match');
+        const lastUploadElement = document.getElementById('last-upload');
+        
+        if (!totalResumesElement || !appliedVacanciesElement || !bestMatchElement || !lastUploadElement) {
+            console.warn('Dashboard elements not found');
+            return;
+        }
+        
+        // Получаем уникальные вакансии, для которых были загружены резюме
+        const uniqueVacancies = new Set();
+        resumes.forEach(resume => {
+            if (resume.vacancy && resume.vacancy.id) {
+                uniqueVacancies.add(resume.vacancy.id);
+            }
+        });
+        
+        // Находим наилучший матч-скор среди всех резюме
+        let bestMatchScore = 0;
+        let lastUploadDate = null;
+        
+        resumes.forEach(resume => {
+            // Проверяем match score, если он есть
+            if (resume.analysis && typeof resume.analysis.match_score === 'number') {
+                bestMatchScore = Math.max(bestMatchScore, resume.analysis.match_score);
+            }
+            
+            // Проверяем дату загрузки
+            if (resume.created_at) {
+                const createdDate = new Date(resume.created_at);
+                if (!lastUploadDate || createdDate > lastUploadDate) {
+                    lastUploadDate = createdDate;
+                }
+            }
+        });
+        
+        // Обновляем статистику в дашборде
+        totalResumesElement.textContent = resumes.length;
+        appliedVacanciesElement.textContent = uniqueVacancies.size;
+        bestMatchElement.textContent = `${Math.round(bestMatchScore)}%`;
+        lastUploadElement.textContent = lastUploadDate ? formatDate(lastUploadDate) : '-';
+        
+        // Обновляем список последних активностей
+        updateRecentActivity(resumes);
+        
+    } catch (error) {
+        console.error('Error updating dashboard:', error);
+        // Продолжаем работу приложения при ошибке обновления дашборда
+    }
+}
+
+// Функция для обновления списка недавних активностей
+function updateRecentActivity(resumes) {
+    const activityList = document.getElementById('recent-activity-list');
+    
+    // Проверяем наличие элемента
+    if (!activityList) {
+        console.warn('Recent activity list element not found');
+        return;
+    }
+    
+    // Очищаем текущий список
+    activityList.innerHTML = '';
+    
+    // Если нет резюме, показываем пустое состояние
+    if (!resumes || resumes.length === 0) {
+        activityList.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>No recent activity to display</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Сортируем резюме по дате (самые новые первыми)
+    const sortedResumes = [...resumes].sort((a, b) => {
+        const dateA = new Date(a.created_at || 0);
+        const dateB = new Date(b.created_at || 0);
+        return dateB - dateA;
+    });
+    
+    // Показываем только последние 5 активностей
+    const recentResumes = sortedResumes.slice(0, 5);
+    
+    // Создаем элементы активности
+    recentResumes.forEach(resume => {
+        const itemElement = document.createElement('div');
+        itemElement.className = 'activity-item';
+        
+        // Определяем иконку активности
+        let iconClass = 'fa-file-alt';
+        if (resume.analysis && resume.analysis.match_score > 70) {
+            iconClass = 'fa-check-circle';
+        } else if (resume.analysis && resume.analysis.match_score < 40) {
+            iconClass = 'fa-exclamation-circle';
+        }
+        
+        const vacancyTitle = resume.vacancy ? resume.vacancy.title : 'Unknown Vacancy';
+        const activityDate = resume.created_at ? formatDate(new Date(resume.created_at)) : 'Unknown date';
+        
+        itemElement.innerHTML = `
+            <div class="activity-icon">
+                <i class="fas ${iconClass}"></i>
+            </div>
+            <div class="activity-details">
+                <p class="activity-message">Resume uploaded for <strong>${vacancyTitle}</strong></p>
+                <span class="activity-time">${activityDate}</span>
+            </div>
+        `;
+        
+        activityList.appendChild(itemElement);
+    });
+}
+
+// Форматирование даты для отображения
+function formatDate(date) {
+    // Если дата недавняя (сегодня/вчера), показываем относительную дату
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === now.toDateString()) {
+        return 'Today ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (date.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else {
+        // Иначе показываем полную дату
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+}
+
+// Показывает статус загрузки
+function showUploadStatus(message, loading = false) {
+    const uploadBtn = elements.resumeUploadFormElement.querySelector('button[type="submit"]');
+    uploadBtn.disabled = true;
+    
+    if (loading) {
+        uploadBtn.innerHTML = '<span class="loading-spinner"></span> ' + message;
+    } else {
+        uploadBtn.textContent = message;
+    }
+    
+    // Если есть контейнер для статуса, показываем его
+    const statusDiv = document.getElementById('upload-status');
+    if (statusDiv) {
+        statusDiv.innerHTML = `
+            <div class="status-indicator">
+                ${loading ? '<span class="loading-spinner"></span>' : ''}
+                <span>${message}</span>
+            </div>
+        `;
+        statusDiv.style.display = 'block';
+    }
+}
+
+// Скрывает статус загрузки
+function hideUploadStatus() {
+    const uploadBtn = elements.resumeUploadFormElement.querySelector('button[type="submit"]');
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = 'Upload Resume';
+    
+    // Скрываем контейнер статуса, если он есть
+    const statusDiv = document.getElementById('upload-status');
+    if (statusDiv) {
+        statusDiv.style.display = 'none';
+    }
+}
+
+// Получает название вакансии по ID
+function getVacancyTitle(vacancyId) {
+    const selectedOption = Array.from(elements.vacancySelector.options)
+        .find(option => option.value === vacancyId);
+    
+    return selectedOption ? selectedOption.textContent : 'Unknown Vacancy';
 } 
