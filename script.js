@@ -821,6 +821,19 @@ async function viewResumeDetails(resumeId) {
 }
 
 function renderResumeDetails(resume) {
+    // Group skills by type для использования в разных местах кода
+    const hardSkills = resume.skills.filter(skill => skill.type === 'HARD');
+    const softSkills = resume.skills.filter(skill => skill.type === 'SOFT');
+    const testSkills = resume.skills.filter(skill => skill.type === 'TEST');
+    const feedbackSkills = resume.skills.filter(skill => skill.type === 'FEEDBACK');
+    
+    // Рассчитываем средний балл feedback скиллов, если они есть
+    let avgFeedback = 0;
+    if (feedbackSkills.length > 0) {
+        const totalFeedback = feedbackSkills.reduce((sum, skill) => sum + skill.level, 0);
+        avgFeedback = totalFeedback / feedbackSkills.length;
+    }
+    
     let html = `
         <div class="resume-header-detail">
             <h2>${resume.fullname}</h2>
@@ -838,9 +851,8 @@ function renderResumeDetails(resume) {
         
         <div class="detail-section score-summary-section">
             <h3><i class="fas fa-chart-bar"></i> Score Summary</h3>
-            <div class="scores-summary">
-    `;
-    
+            <div class="scores-summary">`;
+            
     // Add score summaries if available
     if (resume.hard_total) {
         html += `
@@ -882,6 +894,17 @@ function renderResumeDetails(resume) {
         `;
     }
     
+    // Добавляем Feedback Score если есть фидбек-скиллы
+    if (feedbackSkills.length > 0) {
+        html += `
+            <div class="score-card feedback-score">
+                <div class="score-title">Feedback Score</div>
+                <div class="score-value">${avgFeedback.toFixed(0)}%</div>
+                <p class="justification">Based on previous employers feedback</p>
+            </div>
+        `;
+    }
+    
     html += `
         </div>
     </div>
@@ -896,12 +919,6 @@ function renderResumeDetails(resume) {
         </div>
         <div class="skills-container">
     `;
-    
-    // Group skills by type
-    const hardSkills = resume.skills.filter(skill => skill.type === 'HARD');
-    const softSkills = resume.skills.filter(skill => skill.type === 'SOFT');
-    const testSkills = resume.skills.filter(skill => skill.type === 'TEST');
-    const feedbackSkills = resume.skills.filter(skill => skill.type === 'FEEDBACK');
     
     // CV Analysis (Hard Skills)
     html += `
@@ -1091,33 +1108,37 @@ function renderResumeDetails(resume) {
     
     html += '</div></div>';
     
+    // Вставляем HTML в контейнер
     elements.resumeDetailContent.innerHTML = html;
     
-    // Add event listener for refresh button
-    const refreshButton = document.getElementById('refresh-analysis');
+    // Добавляем обработчики кликов для вкладок
+    const tabButtons = elements.resumeDetailContent.querySelectorAll('.tab-btn');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убираем класс active со всех кнопок и контентов
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            const tabContents = elements.resumeDetailContent.querySelectorAll('.skills-tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Добавляем класс active текущей кнопке и соответствующему контенту
+            this.classList.add('active');
+            const tabId = this.getAttribute('data-tab') + '-tab';
+            const activeContent = elements.resumeDetailContent.querySelector('#' + tabId);
+            if (activeContent) {
+                activeContent.classList.add('active');
+            }
+        });
+    });
+    
+    // Добавляем обработчик для кнопки обновления анализа
+    const refreshButton = elements.resumeDetailContent.querySelector('#refresh-analysis');
     if (refreshButton) {
         refreshButton.addEventListener('click', function() {
             const resumeId = this.getAttribute('data-resume-id');
             refreshResumeAnalysis(resumeId);
         });
     }
-    
-    // Add tab switching functionality
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.skills-tab-content');
-    
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            // Remove active class from all buttons and contents
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-            
-            // Add active class to clicked button and corresponding content
-            button.classList.add('active');
-            const tabId = `${button.getAttribute('data-tab')}-tab`;
-            document.getElementById(tabId).classList.add('active');
-        });
-    });
 }
 
 // Function to refresh resume analysis
@@ -2233,8 +2254,10 @@ function hideUploadStatus() {
 
 // Получает название вакансии по ID
 function getVacancyTitle(vacancyId) {
-    const selectedOption = Array.from(elements.vacancySelector.options)
-        .find(option => option.value === vacancyId);
+    const vacancySelector = document.getElementById('vacancy-selector');
+    if (!vacancySelector) return 'Unknown Vacancy';
+    
+    const selectedOption = Array.from(vacancySelector.options).find(option => option.value === vacancyId.toString());
     
     return selectedOption ? selectedOption.textContent : 'Unknown Vacancy';
-} 
+}
