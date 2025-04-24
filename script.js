@@ -738,27 +738,31 @@ async function viewResumeDetails(resumeId) {
 
 function renderResumeDetails(resume) {
     let html = `
-        <h2>${resume.fullname}</h2>
-        <p class="resume-location">${resume.location}</p>
+        <div class="resume-header-detail">
+            <h2>${resume.fullname}</h2>
+            <p class="resume-location"><i class="fas fa-map-marker-alt"></i> ${resume.location}</p>
+        </div>
         
         <div class="action-buttons">
-            <a href="test.html?resume_id=${resume.id}&tests_id=1" class="button-link">Start Skills Assessment</a>
-            <button id="refresh-analysis" class="refresh-btn" data-resume-id="${resume.id}">
+            <a href="test.html?resume_id=${resume.id}&tests_id=1" class="button-link primary-btn">
+                <i class="fas fa-tasks"></i> Start Skills Assessment
+            </a>
+            <button id="refresh-analysis" class="refresh-btn secondary-btn" data-resume-id="${resume.id}">
                 <span class="refresh-icon">↻</span> Refresh Analysis
             </button>
         </div>
         
-        <div class="detail-section">
-            <h3>Score Summary</h3>
+        <div class="detail-section score-summary-section">
+            <h3><i class="fas fa-chart-bar"></i> Score Summary</h3>
             <div class="scores-summary">
     `;
     
     // Add score summaries if available
     if (resume.hard_total) {
         html += `
-            <div>
-                <span>Hard Skills Score:</span>
-                <span class="total-score hard">${(resume.hard_total.total).toFixed(0)}%</span>
+            <div class="score-card hard-score">
+                <div class="score-title">Hard Skills Score</div>
+                <div class="score-value">${(resume.hard_total.total).toFixed(0)}%</div>
                 <p class="justification">${resume.hard_total.justification}</p>
             </div>
         `;
@@ -766,18 +770,18 @@ function renderResumeDetails(resume) {
     
     if (resume.soft_total && resume.soft_total.total !== null) {
         html += `
-            <div>
-                <span>Soft Skills Score:</span>
-                <span class="total-score soft">${(resume.soft_total.total).toFixed(0)}%</span>
+            <div class="score-card soft-score">
+                <div class="score-title">Soft Skills Score</div>
+                <div class="score-value">${(resume.soft_total.total).toFixed(0)}%</div>
                 <p class="justification">${resume.soft_total.justification}</p>
             </div>
         `;
     } else {
         html += `
-            <div>
-                <span>Soft Skills Score:</span>
+            <div class="score-card soft-score pending">
+                <div class="score-title">Soft Skills Score</div>
                 <div class="analysis-pending">
-                    <span class="pending-message">Analysis in progress. Please wait...</span>
+                    <span class="pending-message">Analysis in progress...</span>
                     <div class="loading-spinner"></div>
                 </div>
             </div>
@@ -786,9 +790,10 @@ function renderResumeDetails(resume) {
     
     if (resume.test_total) {
         html += `
-            <div>
-                <span>Test Score:</span>
-                <span class="total-score test">${(resume.test_total.total).toFixed(0)}%</span>
+            <div class="score-card test-score">
+                <div class="score-title">Test Score</div>
+                <div class="score-value">${(resume.test_total.total).toFixed(0)}%</div>
+                <p class="justification">Based on completed skill assessments</p>
             </div>
         `;
     }
@@ -797,49 +802,185 @@ function renderResumeDetails(resume) {
         </div>
     </div>
     
-    <div class="detail-section">
-        <h3>Skills</h3>
+    <div class="detail-section skills-section">
+        <h3><i class="fas fa-brain"></i> Skills Analysis</h3>
+        <div class="skills-tabs">
+            <button class="tab-btn active" data-tab="hard">CV Analysis</button>
+            <button class="tab-btn" data-tab="soft">Social Media Analysis</button>
+            <button class="tab-btn" data-tab="test">Survey Analysis</button>
+            <button class="tab-btn" data-tab="feedback">Employers Feedback</button>
+        </div>
         <div class="skills-container">
     `;
     
     // Group skills by type
     const hardSkills = resume.skills.filter(skill => skill.type === 'HARD');
     const softSkills = resume.skills.filter(skill => skill.type === 'SOFT');
+    const testSkills = resume.skills.filter(skill => skill.type === 'TEST');
+    const feedbackSkills = resume.skills.filter(skill => skill.type === 'FEEDBACK');
+    
+    // CV Analysis (Hard Skills)
+    html += `
+        <div class="skills-tab-content active" id="hard-tab">
+            <div class="tab-header">
+                <h4>CV Analysis</h4>
+                <p class="tab-description">These skills were identified from the candidate's CV and resume</p>
+            </div>
+    `;
     
     if (hardSkills.length > 0) {
-        html += '<h4>Hard Skills</h4>';
+        html += '<div class="skills-grid">';
         hardSkills.forEach(skill => {
             html += `
-                <div class="detail-item">
-                    <div class="detail-title">${skill.title} - ${(skill.level).toFixed(0)}%</div>
-                    <div class="justification">${skill.justification}</div>
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <span class="skill-title">${skill.title}</span>
+                        <span class="skill-level">${(skill.level).toFixed(0)}%</span>
+                    </div>
+                    <div class="skill-bar">
+                        <div class="skill-progress" style="width: ${skill.level}%;"></div>
+                    </div>
+                    <div class="skill-justification">${skill.justification}</div>
                 </div>
             `;
         });
+        html += '</div>';
+    } else {
+        html += '<p class="no-skills">No hard skills detected in the resume.</p>';
     }
     
-    // Проверяем наличие мягких навыков или анализа мягких навыков
-    html += '<h4>Soft Skills</h4>';
+    html += '</div>';
+    
+    // Social Media Analysis (Soft Skills)
+    html += `
+        <div class="skills-tab-content" id="soft-tab">
+            <div class="tab-header">
+                <h4>Social Media Analysis</h4>
+                <p class="tab-description">These soft skills were identified from the candidate's social media profiles</p>
+            </div>
+    `;
+    
     if (softSkills.length > 0) {
+        html += '<div class="skills-grid">';
         softSkills.forEach(skill => {
             html += `
-                <div class="detail-item">
-                    <div class="detail-title">${skill.title} - ${(skill.level).toFixed(0)}%</div>
-                    <div class="justification">${skill.justification}</div>
+                <div class="skill-card soft">
+                    <div class="skill-header">
+                        <span class="skill-title">${skill.title}</span>
+                        <span class="skill-level">${(skill.level).toFixed(0)}%</span>
+                    </div>
+                    <div class="skill-bar">
+                        <div class="skill-progress" style="width: ${skill.level}%;"></div>
+                    </div>
+                    <div class="skill-justification">${skill.justification}</div>
                 </div>
             `;
         });
+        html += '</div>';
     } else if (resume.soft_total && resume.soft_total.total === 0) {
-        // Если анализ завершен, но нет мягких навыков
-        html += `<p>No soft skills detected in the resume.</p>`;
+        html += '<p class="no-skills">No soft skills detected in the analysis.</p>';
     } else {
-        // Если анализ еще не завершен
         html += `
-            <div class="analysis-pending">
-                <span class="pending-message">Soft skills analysis in progress. This may take a few minutes...</span>
+            <div class="analysis-pending-full">
+                <span class="pending-message">Social media analysis in progress. This may take a few minutes...</span>
                 <div class="loading-spinner"></div>
             </div>
         `;
+    }
+    
+    html += '</div>';
+    
+    // Survey Analysis (Test Skills)
+    html += `
+        <div class="skills-tab-content" id="test-tab">
+            <div class="tab-header">
+                <h4>Survey Analysis</h4>
+                <p class="tab-description">These skills were identified from the candidate's skill assessment tests</p>
+            </div>
+    `;
+    
+    if (testSkills.length > 0) {
+        html += '<div class="skills-grid">';
+        testSkills.forEach(skill => {
+            html += `
+                <div class="skill-card test">
+                    <div class="skill-header">
+                        <span class="skill-title">${skill.title}</span>
+                        <span class="skill-level">${(skill.level).toFixed(0)}%</span>
+                    </div>
+                    <div class="skill-bar">
+                        <div class="skill-progress" style="width: ${skill.level}%;"></div>
+                    </div>
+                    <div class="skill-justification">${skill.justification || 'Based on assessment test results'}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    } else {
+        html += `
+            <p class="no-skills">No test assessments completed yet.</p>
+            <div class="centered-action">
+                <a href="test.html?resume_id=${resume.id}&tests_id=1" class="button-link secondary-btn">
+                    <i class="fas fa-tasks"></i> Start an Assessment
+                </a>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    
+    // Employers Feedback
+    html += `
+        <div class="skills-tab-content" id="feedback-tab">
+            <div class="tab-header">
+                <h4>Employers Feedback</h4>
+                <p class="tab-description">Skills and feedback provided by previous employers</p>
+            </div>
+    `;
+    
+    if (feedbackSkills.length > 0) {
+        html += '<div class="skills-grid">';
+        feedbackSkills.forEach(skill => {
+            html += `
+                <div class="skill-card feedback">
+                    <div class="skill-header">
+                        <span class="skill-title">${skill.title}</span>
+                        <span class="skill-level">${(skill.level).toFixed(0)}%</span>
+                    </div>
+                    <div class="skill-bar">
+                        <div class="skill-progress" style="width: ${skill.level}%;"></div>
+                    </div>
+                    <div class="skill-justification">${skill.justification || 'Feedback from previous employers'}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    } else {
+        html += '<p class="no-skills">No employer feedback available yet.</p>';
+    }
+    
+    html += '</div>'; // Close feedback tab
+    html += '</div>'; // Close skills-container
+    html += '</div>'; // Close skills-section
+    
+    // Education section
+    html += `
+        <div class="detail-section">
+            <h3><i class="fas fa-graduation-cap"></i> Education</h3>
+            <div class="details-list">
+    `;
+    
+    if (resume.educations && resume.educations.length > 0) {
+        resume.educations.forEach(education => {
+            html += `
+                <div class="detail-card">
+                    <div class="detail-title">${education.name}</div>
+                    <div class="detail-content">${education.description}</div>
+                </div>
+            `;
+        });
+    } else {
+        html += '<p class="no-data">No education information available.</p>';
     }
     
     html += `
@@ -847,43 +988,24 @@ function renderResumeDetails(resume) {
     </div>
     
     <div class="detail-section">
-        <h3>Education</h3>
-    `;
-    
-    if (resume.educations && resume.educations.length > 0) {
-        resume.educations.forEach(education => {
-            html += `
-                <div class="detail-item">
-                    <div class="detail-title">${education.name}</div>
-                    <div>${education.description}</div>
-                </div>
-            `;
-        });
-    } else {
-        html += '<p>No education information available.</p>';
-    }
-    
-    html += `
-    </div>
-    
-    <div class="detail-section">
-        <h3>Experience</h3>
+        <h3><i class="fas fa-briefcase"></i> Experience</h3>
+        <div class="details-list">
     `;
     
     if (resume.experiences && resume.experiences.length > 0) {
         resume.experiences.forEach(experience => {
             html += `
-                <div class="detail-item">
+                <div class="detail-card">
                     <div class="detail-title">${experience.name}</div>
-                    <div>${experience.description}</div>
+                    <div class="detail-content">${experience.description}</div>
                 </div>
             `;
         });
     } else {
-        html += '<p>No experience information available.</p>';
+        html += '<p class="no-data">No experience information available.</p>';
     }
     
-    html += '</div>';
+    html += '</div></div>';
     
     elements.resumeDetailContent.innerHTML = html;
     
@@ -895,6 +1017,23 @@ function renderResumeDetails(resume) {
             refreshResumeAnalysis(resumeId);
         });
     }
+    
+    // Add tab switching functionality
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.skills-tab-content');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Remove active class from all buttons and contents
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked button and corresponding content
+            button.classList.add('active');
+            const tabId = `${button.getAttribute('data-tab')}-tab`;
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
 }
 
 // Function to refresh resume analysis

@@ -129,12 +129,16 @@ function renderTests() {
         testHeader.textContent = test.title;
         testSection.appendChild(testHeader);
         
+        // Проверяем наличие и отображаем описание теста
         if (test.proffesion) {
             const testDescription = document.createElement('div');
             testDescription.className = 'test-section-description';
             testDescription.textContent = test.proffesion;
             testSection.appendChild(testDescription);
         }
+        
+        // Проверяем, является ли тест с опциями Yes/No
+        const isOptionalTest = test.is_Optional === true;
         
         // Create questions
         if (test.questions && test.questions.length > 0) {
@@ -149,35 +153,108 @@ function renderTests() {
                 const answerContainer = document.createElement('div');
                 answerContainer.className = 'answer-container';
                 
-                const minValue = document.createElement('span');
-                minValue.textContent = '0';
-                
-                const slider = document.createElement('input');
-                slider.type = 'range';
-                slider.min = '0';
-                slider.max = question.mark;
-                slider.value = '0';
-                slider.className = 'answer-slider';
-                slider.setAttribute('data-test-index', testIndex);
-                slider.setAttribute('data-question-index', questionIndex);
-                slider.id = `question-${testIndex}-${questionIndex}`;
-                
-                const maxValue = document.createElement('span');
-                maxValue.textContent = question.mark;
-                
-                const valueDisplay = document.createElement('div');
-                valueDisplay.className = 'answer-value';
-                valueDisplay.textContent = '0';
-                
-                // Update value display when slider changes
-                slider.addEventListener('input', function() {
-                    valueDisplay.textContent = this.value;
-                });
-                
-                answerContainer.appendChild(minValue);
-                answerContainer.appendChild(slider);
-                answerContainer.appendChild(maxValue);
-                answerContainer.appendChild(valueDisplay);
+                // Если это опциональный тест с ответами Yes/No
+                if (isOptionalTest) {
+                    // Определяем баллы за ответы
+                    const yesValue = question.mark > 0 ? question.mark : 0;
+                    const noValue = question.mark < 0 ? 1 : 0;
+                    
+                    // Создаем контейнер для радио-кнопок
+                    const radioGroup = document.createElement('div');
+                    radioGroup.className = 'yes-no-options';
+                    
+                    // Создаем радио-кнопку "Yes"
+                    const yesContainer = document.createElement('div');
+                    yesContainer.className = 'option';
+                    
+                    const yesRadio = document.createElement('input');
+                    yesRadio.type = 'radio';
+                    yesRadio.name = `question-${testIndex}-${questionIndex}`;
+                    yesRadio.id = `question-${testIndex}-${questionIndex}-yes`;
+                    yesRadio.value = yesValue;
+                    yesRadio.setAttribute('data-test-index', testIndex);
+                    yesRadio.setAttribute('data-question-index', questionIndex);
+                    
+                    const yesLabel = document.createElement('label');
+                    yesLabel.htmlFor = `question-${testIndex}-${questionIndex}-yes`;
+                    yesLabel.textContent = 'Yes';
+                    
+                    yesContainer.appendChild(yesRadio);
+                    yesContainer.appendChild(yesLabel);
+                    
+                    // Создаем радио-кнопку "No"
+                    const noContainer = document.createElement('div');
+                    noContainer.className = 'option';
+                    
+                    const noRadio = document.createElement('input');
+                    noRadio.type = 'radio';
+                    noRadio.name = `question-${testIndex}-${questionIndex}`;
+                    noRadio.id = `question-${testIndex}-${questionIndex}-no`;
+                    noRadio.value = noValue;
+                    noRadio.setAttribute('data-test-index', testIndex);
+                    noRadio.setAttribute('data-question-index', questionIndex);
+                    
+                    const noLabel = document.createElement('label');
+                    noLabel.htmlFor = `question-${testIndex}-${questionIndex}-no`;
+                    noLabel.textContent = 'No';
+                    
+                    noContainer.appendChild(noRadio);
+                    noContainer.appendChild(noLabel);
+                    
+                    // Добавляем подсказку о баллах
+                    const scoreHint = document.createElement('div');
+                    scoreHint.className = 'score-hint';
+                    if (question.mark > 0) {
+                        scoreHint.textContent = `("Yes" = ${yesValue} point${yesValue !== 1 ? 's' : ''}, "No" = 0 points)`;
+                    } else {
+                        scoreHint.textContent = `("Yes" = 0 points, "No" = ${noValue} point${noValue !== 1 ? 's' : ''})`;
+                    }
+                    
+                    radioGroup.appendChild(yesContainer);
+                    radioGroup.appendChild(noContainer);
+                    
+                    answerContainer.appendChild(radioGroup);
+                    answerContainer.appendChild(scoreHint);
+                }
+                // Для обычных тестов используем слайдеры
+                else {
+                    const minValue = document.createElement('span');
+                    minValue.textContent = '0';
+                    minValue.className = 'slider-min';
+                    
+                    const slider = document.createElement('input');
+                    slider.type = 'range';
+                    slider.min = '0';
+                    slider.max = question.mark > 0 ? question.mark : 1; // Защита от отрицательных значений
+                    slider.value = '0';
+                    slider.className = 'answer-slider';
+                    slider.setAttribute('data-test-index', testIndex);
+                    slider.setAttribute('data-question-index', questionIndex);
+                    slider.id = `question-${testIndex}-${questionIndex}`;
+                    
+                    const maxValue = document.createElement('span');
+                    maxValue.textContent = question.mark > 0 ? question.mark : 1;
+                    maxValue.className = 'slider-max';
+                    
+                    const valueDisplay = document.createElement('div');
+                    valueDisplay.className = 'answer-value';
+                    valueDisplay.textContent = '0';
+                    
+                    // Update value display when slider changes
+                    slider.addEventListener('input', function() {
+                        valueDisplay.textContent = this.value;
+                    });
+                    
+                    const sliderContainer = document.createElement('div');
+                    sliderContainer.className = 'slider-container';
+                    
+                    sliderContainer.appendChild(minValue);
+                    sliderContainer.appendChild(slider);
+                    sliderContainer.appendChild(maxValue);
+                    
+                    answerContainer.appendChild(sliderContainer);
+                    answerContainer.appendChild(valueDisplay);
+                }
                 
                 questionItem.appendChild(questionText);
                 questionItem.appendChild(answerContainer);
@@ -206,23 +283,98 @@ async function submitTestResults() {
     
     tests.forEach((test, testIndex) => {
         let totalScore = 0;
+        let maximumScore = 0;
+        const isOptionalTest = test.is_Optional === true;
         
         // Sum all question scores for this test
         test.questions.forEach((question, questionIndex) => {
-            const sliderId = `question-${testIndex}-${questionIndex}`;
-            const slider = document.getElementById(sliderId);
+            // Рассчитываем максимальный возможный балл
+            if (isOptionalTest) {
+                // Для опциональных тестов максимум равен сумме положительных баллов
+                if (question.mark > 0) {
+                    maximumScore += question.mark;
+                } else {
+                    maximumScore += 1; // Если оценка отрицательная, считаем что max = 1
+                }
+            } else {
+                // Для обычных тестов максимум равен сумме всех mark
+                maximumScore += (question.mark > 0 ? question.mark : 1);
+            }
             
-            if (slider) {
-                totalScore += parseInt(slider.value, 10);
+            if (isOptionalTest) {
+                // Для опциональных тестов получаем выбранную радио-кнопку
+                const radioName = `question-${testIndex}-${questionIndex}`;
+                const selectedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
+                
+                if (selectedRadio) {
+                    totalScore += parseInt(selectedRadio.value, 10);
+                }
+            } else {
+                // Для обычных тестов получаем значение слайдера
+                const sliderId = `question-${testIndex}-${questionIndex}`;
+                const slider = document.getElementById(sliderId);
+                
+                if (slider) {
+                    totalScore += parseInt(slider.value, 10);
+                }
             }
         });
         
-        // Add test result
+        // Add test result with additional fields
         results.push({
             title: test.title,
-            result: totalScore
+            result: totalScore,
+            is_Optional: isOptionalTest,
+            maximum: maximumScore
         });
     });
+    
+    // Check if all questions are answered
+    let allQuestionsAnswered = true;
+    let unansweredSections = [];
+    
+    tests.forEach((test, testIndex) => {
+        const isOptionalTest = test.is_Optional === true;
+        let sectionComplete = true;
+        
+        test.questions.forEach((question, questionIndex) => {
+            if (isOptionalTest) {
+                // Проверяем радио-кнопки
+                const radioName = `question-${testIndex}-${questionIndex}`;
+                const selectedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
+                
+                if (!selectedRadio) {
+                    sectionComplete = false;
+                }
+            } else {
+                // Проверяем слайдеры (опционально - если хотим проверить, что значение не 0)
+                const sliderId = `question-${testIndex}-${questionIndex}`;
+                const slider = document.getElementById(sliderId);
+                
+                // Раскомментируйте следующие строки, если хотите требовать ненулевые ответы
+                // if (slider && parseInt(slider.value, 10) === 0) {
+                //     sectionComplete = false;
+                // }
+            }
+        });
+        
+        if (!sectionComplete) {
+            allQuestionsAnswered = false;
+            unansweredSections.push(test.title);
+        }
+    });
+    
+    // Если есть неотвеченные вопросы, предупреждаем пользователя
+    if (!allQuestionsAnswered) {
+        const confirm = window.confirm(`Some questions in ${unansweredSections.join(', ')} have not been answered. Do you want to submit anyway?`);
+        if (!confirm) {
+            return;
+        }
+    }
+    
+    // Disable submit button
+    elements.submitTestButton.disabled = true;
+    elements.submitTestButton.textContent = 'Submitting...';
     
     // Prepare submission payload
     const payload = {
@@ -257,6 +409,10 @@ async function submitTestResults() {
     } catch (error) {
         console.error('Error submitting results:', error);
         showNotification(`Error submitting results: ${error.message}`, true);
+        
+        // Re-enable submit button
+        elements.submitTestButton.disabled = false;
+        elements.submitTestButton.textContent = 'Submit Answers';
     }
 }
 
@@ -279,7 +435,7 @@ function displayResults() {
         
         const resultScore = document.createElement('div');
         resultScore.className = 'result-score';
-        resultScore.textContent = result.result;
+        resultScore.textContent = `${result.result}/${result.maximum}`;
         
         resultItem.appendChild(resultTitle);
         resultItem.appendChild(resultScore);
