@@ -1,5 +1,5 @@
 // API endpoints
-const API_BASE_URL = 'https://api.sand-box.pp.ua';
+const API_BASE_URL = 'https://sandbox-backend-390134393019.us-central1.run.app';
 const API_ENDPOINTS = {
     register: `${API_BASE_URL}/auth/register`,
     login: `${API_BASE_URL}/auth/login`,
