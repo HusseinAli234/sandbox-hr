@@ -1,5 +1,5 @@
 // API endpoints
-const API_BASE_URL = 'https://sandbox-backend-390134393019.us-central1.run.app';
+const API_BASE_URL = 'https://api.sand-box.pp.ua';
 const API_ENDPOINTS = {
     register: `${API_BASE_URL}/auth/register`,
     login: `${API_BASE_URL}/auth/login`,
@@ -1370,6 +1370,7 @@ async function logoutUser() {
         // Update UI
         updateUIForLoggedOutUser();
         showNotification('Logged out successfully');
+        stopRefreshTokenInterval();
     }
 }
 
@@ -1465,13 +1466,22 @@ async function uploadResume(vacancy_id, files) {
             
             // Очищаем форму
             elements.resumeUploadFormElement.reset();
-            
-            // Обновляем имя файла, если элемент существует
+
+            // Очищаем выбранные файлы (drag&drop)
+            selectedFiles.length = 0;
+            renderSelectedFiles();
+            syncInputWithSelectedFiles();
+
+            // Очищаем input и label
+            elements.resumeFile.value = '';
             const fileNameElement = document.querySelector('.file-input-name');
             if (fileNameElement) {
                 fileNameElement.textContent = 'No file chosen';
                 fileNameElement.classList.remove('multiple');
             }
+            // Явно очищаем список файлов в DOM
+            const filesList = document.getElementById('selected-files-list');
+            if (filesList) filesList.innerHTML = '<span style="color:#888;font-size:0.97em;">No files selected</span>';
             
             // Сбрасываем статус загрузки
             hideUploadStatus();
@@ -1811,11 +1821,12 @@ function attachEventListeners() {
         const files = elements.resumeFile.files;
         
         if (vacancyId && files.length > 0) {
-            // Check if all files are PDFs
-            const allPdfs = Array.from(files).every(file => file.type === 'application/pdf');
+            // Check if all files are PDFs or DOCX
+            const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            const allValidFiles = Array.from(files).every(file => validTypes.includes(file.type));
             
-            if (!allPdfs) {
-                showNotification('Please select only PDF files', true);
+            if (!allValidFiles) {
+                showNotification('Please select only PDF or DOCX files', true);
                 return;
             }
             
@@ -1834,7 +1845,7 @@ function attachEventListeners() {
             if (!vacancyId) {
                 showNotification('Please select a vacancy', true);
             } else {
-                showNotification('Please select at least one PDF file', true);
+                showNotification('Please select at least one file', true);
             }
         }
     });
@@ -1892,6 +1903,52 @@ function attachEventListeners() {
             elements.vacancyId.value = '';
         }
     });
+    
+    // Drag & Drop для загрузки резюме
+    const dropArea = document.getElementById('resume-drop-area');
+    if (dropArea) {
+        // Подсветка при наведении
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.remove('dragover');
+            });
+        });
+        // Обработка drop
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(file =>
+                ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)
+            );
+            if (files.length === 0) {
+                showNotification('Only PDF or DOCX files are allowed', true);
+                return;
+            }
+            // Установить файлы в input
+            const dataTransfer = new DataTransfer();
+            files.forEach(file => dataTransfer.items.add(file));
+            elements.resumeFile.files = dataTransfer.files;
+            // Обновить отображение имени файла
+            const fileNameElement = document.querySelector('.file-input-name');
+            if (files.length === 1) {
+                fileNameElement.textContent = files[0].name;
+                fileNameElement.classList.remove('multiple');
+            } else {
+                fileNameElement.textContent = `${files.length} files selected`;
+                fileNameElement.classList.add('multiple');
+            }
+        });
+    }
 }
 
 // Initialize the application
@@ -1934,8 +1991,11 @@ function init() {
                     if (document.getElementById('total-resumes')) {
                         updateDashboard();
                     }
+                    // Запускаем автообновление токена
+                    startRefreshTokenInterval();
+                } else {
+                    stopRefreshTokenInterval();
                 }
-                
                 console.log('Application initialized successfully');
             } catch (delayedError) {
                 console.error('Error in delayed initialization:', delayedError);
@@ -2260,4 +2320,116 @@ function getVacancyTitle(vacancyId) {
     const selectedOption = Array.from(vacancySelector.options).find(option => option.value === vacancyId.toString());
     
     return selectedOption ? selectedOption.textContent : 'Unknown Vacancy';
+}
+
+// --- НАЧАЛО: Drag&Drop и накопление файлов ---
+const selectedFiles = [];
+const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+function renderSelectedFiles() {
+    const list = document.getElementById('selected-files-list');
+    if (!list) return;
+    if (selectedFiles.length === 0) {
+        list.innerHTML = '<span style="color:#888;font-size:0.97em;">No files selected</span>';
+        return;
+    }
+    list.innerHTML = '';
+    selectedFiles.forEach((file, idx) => {
+        const item = document.createElement('div');
+        item.className = 'selected-file-item';
+        item.innerHTML = `<span class="selected-file-name">${file.name} <span style='color:#888;font-size:0.93em;'>(${(file.size/1024).toFixed(1)} KB)</span></span>`;
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'selected-file-remove';
+        removeBtn.textContent = 'Remove';
+        removeBtn.onclick = () => {
+            selectedFiles.splice(idx, 1);
+            renderSelectedFiles();
+        };
+        item.appendChild(removeBtn);
+        list.appendChild(item);
+    });
+}
+
+function syncInputWithSelectedFiles() {
+    const input = document.getElementById('resume-file');
+    const dt = new DataTransfer();
+    selectedFiles.forEach(f => dt.items.add(f));
+    input.files = dt.files;
+}
+
+const dropArea = document.getElementById('resume-drop-area');
+if (dropArea) {
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropArea.classList.add('dragover');
+        });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropArea.classList.remove('dragover');
+        });
+    });
+    dropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropArea.classList.remove('dragover');
+        const files = Array.from(e.dataTransfer.files).filter(file => validTypes.includes(file.type));
+        if (files.length === 0) {
+            showNotification('Only PDF or DOCX files are allowed', true);
+            return;
+        }
+        // Добавляем новые файлы, избегая дубликатов по имени и размеру
+        files.forEach(file => {
+            if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                selectedFiles.push(file);
+            }
+        });
+        renderSelectedFiles();
+        syncInputWithSelectedFiles();
+    });
+}
+
+const fileInput = document.getElementById('resume-file');
+if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files).filter(file => validTypes.includes(file.type));
+        files.forEach(file => {
+            if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                selectedFiles.push(file);
+            }
+        });
+        renderSelectedFiles();
+        syncInputWithSelectedFiles();
+    });
+}
+
+renderSelectedFiles();
+// --- КОНЕЦ: Drag&Drop и накопление файлов ---
+
+// ... существующий код ...
+// Перед отправкой формы синхронизируем input с массивом
+if (elements.resumeUploadFormElement) {
+    elements.resumeUploadFormElement.addEventListener('submit', (e) => {
+        syncInputWithSelectedFiles();
+        // ... остальной код ...
+    }, true);
+}
+
+// --- Автоматическое обновление access токена ---
+let refreshTokenInterval = null;
+function startRefreshTokenInterval() {
+    if (refreshTokenInterval) return; // уже запущен
+    refreshTokenInterval = setInterval(() => {
+        refreshAccessToken();
+    }, 15 * 60 * 1000); // 15 минут
+}
+function stopRefreshTokenInterval() {
+    if (refreshTokenInterval) {
+        clearInterval(refreshTokenInterval);
+        refreshTokenInterval = null;
+    }
 }

@@ -2138,6 +2138,46 @@
         .score-card.feedback-score {
             border-left-color: #8b5cf6;
         }
+
+        /* Drag & Drop Resume Area Styles */
+        .drop-area {
+            border: 3px dashed #2563eb;
+            border-radius: 12px;
+            padding: 48px 24px;
+            text-align: center;
+            color: #2563eb;
+            background: #e8f0fe;
+            margin-top: 18px;
+            margin-bottom: 8px;
+            transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            box-shadow: 0 4px 24px 0 rgba(37,99,235,0.07);
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .drop-area.dragover {
+            background: #dbeafe;
+            border-color: #1d4ed8;
+            box-shadow: 0 0 0 4px #93c5fd;
+        }
+        .drop-area .drop-text {
+            font-size: 1.35rem;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+        .drop-area .fa-cloud-upload-alt {
+            font-size: 2.2rem;
+            margin-right: 0.7rem;
+            color: #2563eb;
+            filter: drop-shadow(0 2px 6px #93c5fd);
+        }
     </style>
 </head>
 <body>
@@ -2249,12 +2289,16 @@
                             <input type="hidden" id="vacancy-id">
                             
                             <div class="form-group file-input-container">
-                                <label for="resume-file">Upload PDF (Max 5MB)</label>
+                                <label for="resume-file">Upload PDF or DOCX (Max 5MB)</label>
                                 <div class="file-input-wrapper">
                                     <label for="resume-file" class="file-input-button">Choose files</label>
                                     <span class="file-input-name">No file chosen</span>
-                                    <input type="file" id="resume-file" accept="application/pdf" required multiple>
+                                    <input type="file" id="resume-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required multiple>
                                 </div>
+                                <div id="resume-drop-area" class="drop-area" style="margin-top:18px; margin-bottom:8px;">
+                                    <span class="drop-text"><i class="fas fa-cloud-upload-alt"></i> Drag & drop your PDF or DOCX files here</span>
+                                </div>
+                                <div id="selected-files-list" class="selected-files-list"></div>
                             </div>
                             
                             <button type="submit" class="submit-btn">Upload Resume</button>

@@ -420,4 +420,26 @@ input[type="range"].answer-slider::-moz-range-thumb:hover {
     align-items: center;
     justify-content: center;
     border-radius: 50%;
+}
+
+.test-nav-btn {
+    background-color: #4a6cf7;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.6rem 1.4rem;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin: 0 0.5rem;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(74,108,247,0.07);
+}
+.test-nav-btn:disabled {
+    background-color: #bfc8e6;
+    color: #fff;
+    cursor: not-allowed;
+}
+.test-nav-btn:hover:not(:disabled) {
+    background-color: #3a5ce5;
 } 

@@ -1,5 +1,5 @@
 // API endpoints
-const API_BASE_URL = 'https://sandbox-backend-390134393019.us-central1.run.app';
+const API_BASE_URL = 'https://api.sand-box.pp.ua';
 const API_ENDPOINTS = {
     getTest: (id) => `${API_BASE_URL}/test/${id}`,
     submitResult: `${API_BASE_URL}/result`
@@ -27,22 +27,26 @@ let testIds = [];
 let tests = [];
 let testResults = [];
 
+// --- Пошаговый режим теста ---
+let currentTestIndex = 0;
+let currentQuestionIndex = 0;
+let userAnswers = {}; // { 'testIndex-questionIndex': value }
+let resumeName = '';
+let testResultsToSend = [];
+
 // Parse URL parameters
 function parseUrlParams() {
     const urlParams = new URLSearchParams(window.location.search);
     resumeId = urlParams.get('resume_id');
-    
+    resumeName = urlParams.get('resume_name') ? decodeURIComponent(urlParams.get('resume_name')) : '';
     const testsParam = urlParams.get('tests_id');
     if (testsParam) {
         testIds = testsParam.split(',').map(id => id.trim());
     }
-    
-    // Validate required parameters
     if (!resumeId || testIds.length === 0) {
         showError('Missing required parameters. Please check the URL and try again.');
         return false;
     }
-    
     return true;
 }
 
@@ -106,282 +110,314 @@ async function fetchTests() {
 }
 
 // Render tests in the form
-function renderTests() {
-    // Update test title if we have only one test
-    if (tests.length === 1) {
-        elements.testTitle.textContent = tests[0].title;
-        elements.testDescription.textContent = tests[0].proffesion || '';
+function renderCurrentQuestion() {
+    const test = tests[currentTestIndex];
+    const testIndex = currentTestIndex;
+    const questionIndex = currentQuestionIndex;
+    const isOptionalTest = test.is_Optional === true;
+    const hasImageOptions = isOptionalTest && test.questions.every(q => q.source);
+
+    // Заголовки
+    if (isOptionalTest && resumeName) {
+        elements.testTitle.textContent = `Пройдите опрос, связанный с вашим бывшим работником ${resumeName}`;
     } else {
-        elements.testTitle.textContent = 'Skills Assessment Tests';
-        elements.testDescription.textContent = `${tests.length} tests to complete`;
+        elements.testTitle.textContent = test.title;
     }
-    
-    // Clear existing content
+    elements.testDescription.textContent = test.proffesion || '';
     elements.testForm.innerHTML = '';
-    
-    // Create test sections
-    tests.forEach((test, testIndex) => {
-        const testSection = document.createElement('div');
-        testSection.className = 'test-section';
-        testSection.setAttribute('data-test-id', test.id);
-        
-        const testHeader = document.createElement('h3');
-        testHeader.textContent = test.title;
-        testSection.appendChild(testHeader);
-        
-        // Проверяем наличие и отображаем описание теста
-        if (test.proffesion) {
-            const testDescription = document.createElement('div');
-            testDescription.className = 'test-section-description';
-            testDescription.textContent = test.proffesion;
-            testSection.appendChild(testDescription);
+
+    // Если это опрос с картинками (выбор одного варианта)
+    if (hasImageOptions) {
+        const info = document.createElement('div');
+        info.style.marginBottom = '1rem';
+        info.style.fontWeight = '500';
+        info.textContent = 'Выберите подходящий вариант:';
+        elements.testForm.appendChild(info);
+
+        const optionsWrap = document.createElement('div');
+        optionsWrap.style.display = 'flex';
+        optionsWrap.style.flexWrap = 'wrap';
+        optionsWrap.style.gap = '24px';
+        optionsWrap.style.justifyContent = 'center';
+        test.questions.forEach((question, qIdx) => {
+            const optionCard = document.createElement('div');
+            optionCard.style.border = '2px solid #e5e7eb';
+            optionCard.style.borderRadius = '10px';
+            optionCard.style.padding = '12px';
+            optionCard.style.cursor = 'pointer';
+            optionCard.style.textAlign = 'center';
+            optionCard.style.width = '180px';
+            optionCard.style.transition = 'border 0.2s, box-shadow 0.2s';
+            optionCard.className = 'image-option-card';
+            if (userAnswers[`imgopt-${testIndex}`] == qIdx) {
+                optionCard.style.border = '2.5px solid #4a6cf7';
+                optionCard.style.boxShadow = '0 0 0 2px #c7d2fe';
+            }
+            const img = document.createElement('img');
+            img.src = question.source;
+            img.alt = question.question;
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '120px';
+            img.style.borderRadius = '8px';
+            img.style.marginBottom = '10px';
+            const label = document.createElement('div');
+            label.textContent = question.question;
+            label.style.marginTop = '8px';
+            label.style.fontWeight = '500';
+            label.style.fontSize = '1rem';
+            optionCard.appendChild(img);
+            optionCard.appendChild(label);
+            optionCard.onclick = () => {
+                userAnswers[`imgopt-${testIndex}`] = qIdx;
+                renderCurrentQuestion();
+            };
+            optionsWrap.appendChild(optionCard);
+        });
+        elements.testForm.appendChild(optionsWrap);
+        // Кнопки управления
+        const controls = document.createElement('div');
+        controls.className = 'test-controls';
+        // Управляем только стилем и текстом кнопки, не добавляем её в DOM
+        elements.submitTestButton.style.display = 'inline-block';
+        elements.submitTestButton.textContent = (currentTestIndex === tests.length - 1) ? 'Завершить' : 'Далее';
+        elements.submitTestButton.disabled = (userAnswers[`imgopt-${testIndex}`] === undefined);
+        elements.testForm.appendChild(controls);
+        elements.loadingIndicator.style.display = 'none';
+        elements.testContent.style.display = 'block';
+        return;
+    }
+    // --- Обычный пошаговый режим ---
+    const question = test.questions[questionIndex];
+    // Прогресс
+    const progress = document.createElement('div');
+    progress.style.marginBottom = '1rem';
+    progress.style.fontWeight = '500';
+    progress.textContent = `Вопрос ${questionIndex + 1} из ${test.questions.length}`;
+    elements.testForm.appendChild(progress);
+    // Вопрос
+    const questionItem = document.createElement('div');
+    questionItem.className = 'question-item';
+    const questionText = document.createElement('div');
+    questionText.className = 'question-text';
+    questionText.textContent = question.question;
+    questionItem.appendChild(questionText);
+    const answerContainer = document.createElement('div');
+    answerContainer.className = 'answer-container';
+    if (isOptionalTest) {
+        const radioName = `question-${testIndex}-${questionIndex}`;
+        const yesValue = question.mark > 0 ? question.mark : 0;
+        const noValue = question.mark < 0 ? 1 : 0;
+        const radioGroup = document.createElement('div');
+        radioGroup.className = 'yes-no-options';
+        // Yes
+        const yesContainer = document.createElement('div');
+        yesContainer.className = 'option';
+        const yesRadio = document.createElement('input');
+        yesRadio.type = 'radio';
+        yesRadio.name = radioName;
+        yesRadio.value = yesValue;
+        yesRadio.id = `${radioName}-yes`;
+        if (userAnswers[radioName] == yesValue) yesRadio.checked = true;
+        const yesLabel = document.createElement('label');
+        yesLabel.htmlFor = `${radioName}-yes`;
+        yesLabel.textContent = 'Yes';
+        yesContainer.appendChild(yesRadio);
+        yesContainer.appendChild(yesLabel);
+        // No
+        const noContainer = document.createElement('div');
+        noContainer.className = 'option';
+        const noRadio = document.createElement('input');
+        noRadio.type = 'radio';
+        noRadio.name = radioName;
+        noRadio.value = noValue;
+        noRadio.id = `${radioName}-no`;
+        if (userAnswers[radioName] == noValue) noRadio.checked = true;
+        const noLabel = document.createElement('label');
+        noLabel.htmlFor = `${radioName}-no`;
+        noLabel.textContent = 'No';
+        noContainer.appendChild(noRadio);
+        noContainer.appendChild(noLabel);
+        radioGroup.appendChild(yesContainer);
+        radioGroup.appendChild(noContainer);
+        answerContainer.appendChild(radioGroup);
+    } else {
+        // Слайдер
+        const sliderId = `question-${testIndex}-${questionIndex}`;
+        const minValue = document.createElement('span');
+        minValue.textContent = '0';
+        minValue.className = 'slider-min';
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0';
+        slider.max = question.mark > 0 ? question.mark : 1;
+        slider.value = userAnswers[sliderId] !== undefined ? userAnswers[sliderId] : '0';
+        slider.className = 'answer-slider';
+        slider.id = sliderId;
+        const maxValue = document.createElement('span');
+        maxValue.textContent = question.mark > 0 ? question.mark : 1;
+        maxValue.className = 'slider-max';
+        const valueDisplay = document.createElement('div');
+        valueDisplay.className = 'answer-value';
+        valueDisplay.textContent = slider.value;
+        slider.addEventListener('input', function() {
+            valueDisplay.textContent = this.value;
+        });
+        const sliderContainer = document.createElement('div');
+        sliderContainer.className = 'slider-container';
+        sliderContainer.appendChild(minValue);
+        sliderContainer.appendChild(slider);
+        sliderContainer.appendChild(maxValue);
+        answerContainer.appendChild(sliderContainer);
+        answerContainer.appendChild(valueDisplay);
+    }
+    questionItem.appendChild(answerContainer);
+    elements.testForm.appendChild(questionItem);
+    // Кнопки управления
+    const controls = document.createElement('div');
+    controls.className = 'test-controls';
+    // Назад
+    const prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
+    prevBtn.textContent = 'Назад';
+    prevBtn.className = 'test-nav-btn';
+    prevBtn.disabled = (questionIndex === 0);
+    prevBtn.onclick = () => {
+        saveCurrentAnswer();
+        if (questionIndex > 0) {
+            currentQuestionIndex--;
+            renderCurrentQuestion();
         }
-        
-        // Проверяем, является ли тест с опциями Yes/No
-        const isOptionalTest = test.is_Optional === true;
-        
-        // Create questions
-        if (test.questions && test.questions.length > 0) {
-            test.questions.forEach((question, questionIndex) => {
-                const questionItem = document.createElement('div');
-                questionItem.className = 'question-item';
-                
-                const questionText = document.createElement('div');
-                questionText.className = 'question-text';
-                questionText.textContent = `${questionIndex + 1}. ${question.question}`;
-                
-                const answerContainer = document.createElement('div');
-                answerContainer.className = 'answer-container';
-                
-                // Если это опциональный тест с ответами Yes/No
-                if (isOptionalTest) {
-                    // Определяем баллы за ответы
-                    const yesValue = question.mark > 0 ? question.mark : 0;
-                    const noValue = question.mark < 0 ? 1 : 0;
-                    
-                    // Создаем контейнер для радио-кнопок
-                    const radioGroup = document.createElement('div');
-                    radioGroup.className = 'yes-no-options';
-                    
-                    // Создаем радио-кнопку "Yes"
-                    const yesContainer = document.createElement('div');
-                    yesContainer.className = 'option';
-                    
-                    const yesRadio = document.createElement('input');
-                    yesRadio.type = 'radio';
-                    yesRadio.name = `question-${testIndex}-${questionIndex}`;
-                    yesRadio.id = `question-${testIndex}-${questionIndex}-yes`;
-                    yesRadio.value = yesValue;
-                    yesRadio.setAttribute('data-test-index', testIndex);
-                    yesRadio.setAttribute('data-question-index', questionIndex);
-                    
-                    const yesLabel = document.createElement('label');
-                    yesLabel.htmlFor = `question-${testIndex}-${questionIndex}-yes`;
-                    yesLabel.textContent = 'Yes';
-                    
-                    yesContainer.appendChild(yesRadio);
-                    yesContainer.appendChild(yesLabel);
-                    
-                    // Создаем радио-кнопку "No"
-                    const noContainer = document.createElement('div');
-                    noContainer.className = 'option';
-                    
-                    const noRadio = document.createElement('input');
-                    noRadio.type = 'radio';
-                    noRadio.name = `question-${testIndex}-${questionIndex}`;
-                    noRadio.id = `question-${testIndex}-${questionIndex}-no`;
-                    noRadio.value = noValue;
-                    noRadio.setAttribute('data-test-index', testIndex);
-                    noRadio.setAttribute('data-question-index', questionIndex);
-                    
-                    const noLabel = document.createElement('label');
-                    noLabel.htmlFor = `question-${testIndex}-${questionIndex}-no`;
-                    noLabel.textContent = 'No';
-                    
-                    noContainer.appendChild(noRadio);
-                    noContainer.appendChild(noLabel);
-                    
-                    // Добавляем подсказку о баллах
-                    const scoreHint = document.createElement('div');
-                    scoreHint.className = 'score-hint';
-                    if (question.mark > 0) {
-                        scoreHint.textContent = `("Yes" = ${yesValue} point${yesValue !== 1 ? 's' : ''}, "No" = 0 points)`;
-                    } else {
-                        scoreHint.textContent = `("Yes" = 0 points, "No" = ${noValue} point${noValue !== 1 ? 's' : ''})`;
-                    }
-                    
-                    radioGroup.appendChild(yesContainer);
-                    radioGroup.appendChild(noContainer);
-                    
-                    answerContainer.appendChild(radioGroup);
-                    answerContainer.appendChild(scoreHint);
-                }
-                // Для обычных тестов используем слайдеры
-                else {
-                    const minValue = document.createElement('span');
-                    minValue.textContent = '0';
-                    minValue.className = 'slider-min';
-                    
-                    const slider = document.createElement('input');
-                    slider.type = 'range';
-                    slider.min = '0';
-                    slider.max = question.mark > 0 ? question.mark : 1; // Защита от отрицательных значений
-                    slider.value = '0';
-                    slider.className = 'answer-slider';
-                    slider.setAttribute('data-test-index', testIndex);
-                    slider.setAttribute('data-question-index', questionIndex);
-                    slider.id = `question-${testIndex}-${questionIndex}`;
-                    
-                    const maxValue = document.createElement('span');
-                    maxValue.textContent = question.mark > 0 ? question.mark : 1;
-                    maxValue.className = 'slider-max';
-                    
-                    const valueDisplay = document.createElement('div');
-                    valueDisplay.className = 'answer-value';
-                    valueDisplay.textContent = '0';
-                    
-                    // Update value display when slider changes
-                    slider.addEventListener('input', function() {
-                        valueDisplay.textContent = this.value;
-                    });
-                    
-                    const sliderContainer = document.createElement('div');
-                    sliderContainer.className = 'slider-container';
-                    
-                    sliderContainer.appendChild(minValue);
-                    sliderContainer.appendChild(slider);
-                    sliderContainer.appendChild(maxValue);
-                    
-                    answerContainer.appendChild(sliderContainer);
-                    answerContainer.appendChild(valueDisplay);
-                }
-                
-                questionItem.appendChild(questionText);
-                questionItem.appendChild(answerContainer);
-                
-                testSection.appendChild(questionItem);
-            });
-        } else {
-            // No questions case
-            const noQuestions = document.createElement('p');
-            noQuestions.textContent = 'This test contains no questions.';
-            testSection.appendChild(noQuestions);
-        }
-        
-        elements.testForm.appendChild(testSection);
-    });
-    
-    // Hide loading indicator and show content
+    };
+    controls.appendChild(prevBtn);
+    // Далее или Завершить
+    if (questionIndex < test.questions.length - 1) {
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.textContent = 'Далее';
+        nextBtn.className = 'test-nav-btn';
+        nextBtn.onclick = () => {
+            saveCurrentAnswer();
+            if (questionIndex < test.questions.length - 1) {
+                currentQuestionIndex++;
+                renderCurrentQuestion();
+            }
+        };
+        controls.appendChild(nextBtn);
+        elements.submitTestButton.style.display = 'none';
+    } else {
+        // Последний вопрос — показать submit
+        elements.submitTestButton.style.display = 'inline-block';
+        elements.submitTestButton.textContent = (currentTestIndex === tests.length - 1) ? 'Завершить' : 'Далее';
+        elements.submitTestButton.disabled = false;
+    }
+    elements.testForm.appendChild(controls);
     elements.loadingIndicator.style.display = 'none';
     elements.testContent.style.display = 'block';
 }
 
+function saveCurrentAnswer() {
+    const testIndex = currentTestIndex;
+    const questionIndex = currentQuestionIndex;
+    const test = tests[testIndex];
+    const isOptionalTest = test.is_Optional === true;
+    const hasImageOptions = isOptionalTest && test.questions.every(q => q.source);
+    if (hasImageOptions) {
+        // already saved on click
+        return;
+    }
+    const question = test.questions[questionIndex];
+    if (isOptionalTest) {
+        const radioName = `question-${testIndex}-${questionIndex}`;
+        const selectedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
+        if (selectedRadio) {
+            userAnswers[radioName] = selectedRadio.value;
+        }
+    } else {
+        const sliderId = `question-${testIndex}-${questionIndex}`;
+        const slider = document.getElementById(sliderId);
+        if (slider) {
+            userAnswers[sliderId] = slider.value;
+        }
+    }
+}
+
+// Переопределяем renderTests для запуска пошагового режима
+function renderTests() {
+    currentTestIndex = 0;
+    currentQuestionIndex = 0;
+    userAnswers = {};
+    renderCurrentQuestion();
+}
+
 // Collect and submit test results
 async function submitTestResults() {
-    // Collect all test results
-    const results = [];
-    
-    tests.forEach((test, testIndex) => {
+    saveCurrentAnswer();
+    const test = tests[currentTestIndex];
+    const testIndex = currentTestIndex;
+    const isOptionalTest = test.is_Optional === true;
+    const hasImageOptions = isOptionalTest && test.questions.every(q => q.source);
+    let result = null;
+    if (hasImageOptions) {
+        // Найти выбранный вариант
+        const selectedIdx = userAnswers[`imgopt-${testIndex}`];
+        if (selectedIdx !== undefined) {
+            const chosen = test.questions[selectedIdx];
+            result = {
+                title: chosen.question,
+                result: 0,
+                is_Optional: true,
+                maximum: 0
+            };
+        }
+    } else {
         let totalScore = 0;
         let maximumScore = 0;
-        const isOptionalTest = test.is_Optional === true;
-        
-        // Sum all question scores for this test
         test.questions.forEach((question, questionIndex) => {
-            // Рассчитываем максимальный возможный балл
             if (isOptionalTest) {
-                // Для опциональных тестов максимум равен сумме положительных баллов
                 if (question.mark > 0) {
                     maximumScore += question.mark;
                 } else {
-                    maximumScore += 1; // Если оценка отрицательная, считаем что max = 1
+                    maximumScore += 1;
                 }
             } else {
-                // Для обычных тестов максимум равен сумме всех mark
                 maximumScore += (question.mark > 0 ? question.mark : 1);
             }
-            
             if (isOptionalTest) {
-                // Для опциональных тестов получаем выбранную радио-кнопку
                 const radioName = `question-${testIndex}-${questionIndex}`;
                 const selectedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
-                
                 if (selectedRadio) {
                     totalScore += parseInt(selectedRadio.value, 10);
                 }
             } else {
-                // Для обычных тестов получаем значение слайдера
                 const sliderId = `question-${testIndex}-${questionIndex}`;
                 const slider = document.getElementById(sliderId);
-                
                 if (slider) {
                     totalScore += parseInt(slider.value, 10);
                 }
             }
         });
-        
-        // Add test result with additional fields
-        results.push({
+        result = {
             title: test.title,
             result: totalScore,
             is_Optional: isOptionalTest,
             maximum: maximumScore
-        });
-    });
-    
-    // Check if all questions are answered
-    let allQuestionsAnswered = true;
-    let unansweredSections = [];
-    
-    tests.forEach((test, testIndex) => {
-        const isOptionalTest = test.is_Optional === true;
-        let sectionComplete = true;
-        
-        test.questions.forEach((question, questionIndex) => {
-            if (isOptionalTest) {
-                // Проверяем радио-кнопки
-                const radioName = `question-${testIndex}-${questionIndex}`;
-                const selectedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
-                
-                if (!selectedRadio) {
-                    sectionComplete = false;
-                }
-            } else {
-                // Проверяем слайдеры (опционально - если хотим проверить, что значение не 0)
-                const sliderId = `question-${testIndex}-${questionIndex}`;
-                const slider = document.getElementById(sliderId);
-                
-                // Раскомментируйте следующие строки, если хотите требовать ненулевые ответы
-                // if (slider && parseInt(slider.value, 10) === 0) {
-                //     sectionComplete = false;
-                // }
-            }
-        });
-        
-        if (!sectionComplete) {
-            allQuestionsAnswered = false;
-            unansweredSections.push(test.title);
-        }
-    });
-    
-    // Если есть неотвеченные вопросы, предупреждаем пользователя
-    if (!allQuestionsAnswered) {
-        const confirm = window.confirm(`Some questions in ${unansweredSections.join(', ')} have not been answered. Do you want to submit anyway?`);
-        if (!confirm) {
-            return;
-        }
+        };
     }
-    
-    // Disable submit button
+    if (result) testResultsToSend.push(result);
+    // Если есть следующий тест — перейти к нему
+    if (currentTestIndex < tests.length - 1) {
+        currentTestIndex++;
+        currentQuestionIndex = 0;
+        renderCurrentQuestion();
+        return;
+    }
+    // Если это последний тест — отправить результаты
     elements.submitTestButton.disabled = true;
     elements.submitTestButton.textContent = 'Submitting...';
-    
-    // Prepare submission payload
     const payload = {
         resume_id: parseInt(resumeId, 10),
-        sub_tests: results
+        sub_tests: testResultsToSend
     };
-    
     try {
         const response = await fetch(API_ENDPOINTS.submitResult, {
             method: 'POST',
@@ -391,26 +427,16 @@ async function submitTestResults() {
             },
             body: JSON.stringify(payload)
         });
-        
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.message || 'Failed to submit test results');
         }
-        
-        // Save results for display
-        testResults = results;
-        
-        // Show success notification
+        testResults = testResultsToSend;
         showNotification('Test results submitted successfully!');
-        
-        // Show results
         displayResults();
-        
     } catch (error) {
         console.error('Error submitting results:', error);
         showNotification(`Error submitting results: ${error.message}`, true);
-        
-        // Re-enable submit button
         elements.submitTestButton.disabled = false;
         elements.submitTestButton.textContent = 'Submit Answers';
     }
