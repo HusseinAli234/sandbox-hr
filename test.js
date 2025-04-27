@@ -384,15 +384,15 @@ async function submitTestResults() {
             }
             if (isOptionalTest) {
                 const radioName = `question-${testIndex}-${questionIndex}`;
-                const selectedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
-                if (selectedRadio) {
-                    totalScore += parseInt(selectedRadio.value, 10);
+                const answer = userAnswers[radioName];
+                if (answer !== undefined) {
+                    totalScore += parseInt(answer, 10);
                 }
             } else {
                 const sliderId = `question-${testIndex}-${questionIndex}`;
-                const slider = document.getElementById(sliderId);
-                if (slider) {
-                    totalScore += parseInt(slider.value, 10);
+                const answer = userAnswers[sliderId];
+                if (answer !== undefined) {
+                    totalScore += parseInt(answer, 10);
                 }
             }
         });
